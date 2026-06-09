@@ -1,0 +1,78 @@
+@use '@/styles/variables.scss' as *;
+
+.flowerCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  box-shadow: $shadow-card;
+  position: relative;
+  transition: all $transition-base;
+  cursor: pointer;
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &.locked {
+    opacity: 0.7;
+  }
+}
+
+.rarityTag {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  padding: 4rpx 12rpx;
+  border-radius: $radius-xs;
+}
+
+.rarityText {
+  font-size: 20rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+}
+
+.flowerIconWrap {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $spacing-sm;
+}
+
+.flowerIcon {
+  font-size: 80rpx;
+}
+
+.flowerName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  text-align: center;
+  @include text-ellipsis;
+}
+
+.flowerMeaning {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  text-align: center;
+  margin-top: 4rpx;
+  @include text-ellipsis;
+}
+
+.countBadge {
+  position: absolute;
+  bottom: 16rpx;
+  right: 16rpx;
+  background: $color-primary;
+  padding: 4rpx 12rpx;
+  border-radius: $radius-round;
+}
+
+.countText {
+  font-size: 20rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}

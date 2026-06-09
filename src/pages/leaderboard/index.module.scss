@@ -1,0 +1,209 @@
+@use '@/styles/variables.scss' as *;
+
+.pageContainer {
+  padding-top: $spacing-md;
+}
+
+.tabHeader {
+  display: flex;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-xs;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.tabItem {
+  flex: 1;
+  height: $button-height-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+
+  &.active {
+    background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  }
+}
+
+.tabText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+
+  .active & {
+    color: $color-text-white;
+  }
+}
+
+.topThree {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+}
+
+.topRankCard {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $spacing-lg $spacing-md;
+  box-shadow: $shadow-card;
+  text-align: center;
+  position: relative;
+  padding-top: $spacing-xl;
+
+  &.rank1 {
+    background: linear-gradient(180deg, #FFF9E6 0%, #FFFFFF 100%);
+    border: 3rpx solid $color-accent;
+  }
+
+  &.rank2 {
+    background: linear-gradient(180deg, #F5F7FA 0%, #FFFFFF 100%);
+    border: 3rpx solid #ADB5BD;
+  }
+
+  &.rank3 {
+    background: linear-gradient(180deg, #FFF5EB 0%, #FFFFFF 100%);
+    border: 3rpx solid #F8A978;
+  }
+}
+
+.rankBadge {
+  position: absolute;
+  top: -24rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
+
+  .rank1 & {
+    background: $color-accent;
+  }
+
+  .rank2 & {
+    background: #ADB5BD;
+  }
+
+  .rank3 & {
+    background: #F8A978;
+  }
+}
+
+.rankAvatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: $radius-round;
+  margin: 0 auto $spacing-sm;
+  border: 4rpx solid rgba(255, 255, 255, 0.5);
+}
+
+.rankNickname {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.rankLevel {
+  font-size: 20rpx;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.rankScore {
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  margin-top: $spacing-sm;
+}
+
+.rankList {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
+.rankItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md $spacing-lg;
+  gap: $spacing-md;
+  border-bottom: 1rpx solid $color-divider;
+  transition: all $transition-base;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.self {
+    background: linear-gradient(90deg, rgba(255, 123, 169, 0.1) 0%, transparent 100%);
+  }
+}
+
+.rankNum {
+  width: 48rpx;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-tertiary;
+  text-align: center;
+}
+
+.rankItemAvatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: $radius-round;
+}
+
+.rankItemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.rankItemNickname {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.rankItemLevel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.friendTag {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  background: $color-secondary-light;
+  border-radius: $radius-xs;
+  font-size: 18rpx;
+  color: #FFFFFF;
+  margin-left: $spacing-xs;
+}
+
+.rankItemScore {
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+}
+
+.selfTag {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  background: $color-primary;
+  border-radius: $radius-xs;
+  font-size: 18rpx;
+  color: #FFFFFF;
+  margin-left: $spacing-xs;
+}

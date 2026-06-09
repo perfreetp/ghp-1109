@@ -1,0 +1,329 @@
+@use '@/styles/variables.scss' as *;
+
+.pageContainer {
+  padding: 0;
+}
+
+.heroSection {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 50%, $color-secondary 100%);
+  padding: $spacing-xl $page-padding $spacing-2xl;
+  padding-top: calc(env(safe-area-inset-top) + 32rpx);
+  border-radius: 0 0 48rpx 48rpx;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '🌸';
+    position: absolute;
+    top: 20rpx;
+    right: 40rpx;
+    font-size: 120rpx;
+    opacity: 0.2;
+  }
+
+  &::after {
+    content: '🌺';
+    position: absolute;
+    bottom: 40rpx;
+    left: 20rpx;
+    font-size: 100rpx;
+    opacity: 0.15;
+  }
+}
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: $radius-round;
+  border: 4rpx solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2);
+}
+
+.userInfo {
+  flex: 1;
+}
+
+.nickname {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+  margin-bottom: 8rpx;
+}
+
+.levelInfo {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.levelBadge {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 6rpx 20rpx;
+  border-radius: $radius-round;
+}
+
+.levelText {
+  font-size: $font-size-sm;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.statsRow {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-xl;
+}
+
+.statCard {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  text-align: center;
+}
+
+.statValue {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+  line-height: 1.2;
+}
+
+.statLabel {
+  font-size: $font-size-xs;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 4rpx;
+}
+
+.contentSection {
+  padding: 0 $page-padding;
+  margin-top: -40rpx;
+  position: relative;
+  z-index: 2;
+}
+
+.quickStartCard {
+  background: linear-gradient(135deg, #FFFFFF 0%, #FFF5F8 100%);
+  border-radius: $radius-xl;
+  padding: $spacing-xl;
+  box-shadow: 0 8rpx 32rpx rgba(255, 123, 169, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-lg;
+}
+
+.quickInfo {
+  flex: 1;
+}
+
+.quickTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+}
+
+.quickDesc {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-top: 8rpx;
+}
+
+.quickBtn {
+  height: $button-height-lg;
+  padding: 0 48rpx;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 20rpx rgba(232, 92, 144, 0.4);
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.quickBtnText {
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+  padding: 0 $spacing-xs;
+}
+
+.sectionTitleText {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+}
+
+.sectionMore {
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
+
+.offlineCard {
+  background: linear-gradient(135deg, $color-accent-light 0%, $color-warning 100%);
+  border-radius: $radius-xl;
+  padding: $spacing-xl;
+  margin-bottom: $spacing-lg;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4rpx 20rpx rgba(253, 203, 110, 0.3);
+}
+
+.offlineInfo {
+  flex: 1;
+}
+
+.offlineTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 8rpx;
+}
+
+.offlineCoins {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  color: #D97706;
+}
+
+.claimBtn {
+  height: $button-height-md;
+  padding: 0 $spacing-xl;
+  background: $color-text-white;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.claimBtnText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+}
+
+.dailyGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+}
+
+.dailyCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.dailyIcon {
+  font-size: 64rpx;
+  margin-bottom: $spacing-sm;
+}
+
+.dailyTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+}
+
+.dailyDesc {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  text-align: center;
+}
+
+.dailyBadge {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  min-width: 40rpx;
+  height: 40rpx;
+  padding: 0 12rpx;
+  background: $color-error;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dailyBadgeText {
+  font-size: 20rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.entryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+}
+
+.entryItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: $spacing-sm 0;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.entryIconWrap {
+  width: 100rpx;
+  height: 100rpx;
+  background: linear-gradient(135deg, #FFF5F8 0%, #FDF2F7 100%);
+  border-radius: $radius-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $spacing-xs;
+}
+
+.entryIcon {
+  font-size: 48rpx;
+}
+
+.entryText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}

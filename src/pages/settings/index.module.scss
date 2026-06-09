@@ -1,0 +1,153 @@
+@use '@/styles/variables.scss' as *;
+
+.pageContainer {
+  padding: $spacing-md $page-padding;
+}
+
+.sectionGroup {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-card;
+  overflow: hidden;
+  margin-bottom: $spacing-lg;
+}
+
+.sectionHeader {
+  padding: $spacing-lg;
+  padding-bottom: $spacing-xs;
+}
+
+.sectionTitle {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  font-weight: $font-weight-medium;
+}
+
+.settingItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-lg;
+  border-bottom: 1rpx solid $color-divider;
+  transition: all $transition-base;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: $color-bg-hover;
+  }
+}
+
+.itemLeft {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.itemIcon {
+  width: 64rpx;
+  height: 64rpx;
+  background: linear-gradient(135deg, #FFF5F8 0%, #FDF2F7 100%);
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+}
+
+.itemInfo {}
+
+.itemTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.itemDesc {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.switchTrack {
+  width: 100rpx;
+  height: 56rpx;
+  background: $color-border;
+  border-radius: $radius-round;
+  padding: 4rpx;
+  transition: all $transition-base;
+  position: relative;
+
+  &.on {
+    background: $color-primary;
+  }
+}
+
+.switchThumb {
+  width: 48rpx;
+  height: 48rpx;
+  background: $color-text-white;
+  border-radius: $radius-round;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+  transition: all $transition-base;
+  transform: translateX(0);
+
+  .on & {
+    transform: translateX(44rpx);
+  }
+}
+
+.aboutCard {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $spacing-2xl;
+  text-align: center;
+  box-shadow: $shadow-card;
+}
+
+.logoIcon {
+  font-size: 100rpx;
+  margin-bottom: $spacing-md;
+}
+
+.appName {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.appVersion {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-lg;
+}
+
+.aboutBtn {
+  display: inline-flex;
+  height: $button-height-md;
+  padding: 0 $spacing-xl;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.aboutBtnText {
+  font-size: $font-size-md;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.eyeCareMode {
+  &.active {
+    filter: sepia(0.3) saturate(0.8);
+  }
+}
