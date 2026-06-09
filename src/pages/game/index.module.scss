@@ -392,3 +392,36 @@
   60% { transform: scale(1.3); }
   100% { transform: scale(1); }
 }
+
+.rewardBox {
+  background: linear-gradient(135deg, #FFF8E1 0%, #FFF0C2 100%);
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  margin-bottom: $spacing-xl;
+  border: 2rpx dashed #FFD93D;
+}
+
+.rewardTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: #E67E22;
+  margin-bottom: $spacing-sm;
+}
+
+.rewardRow {
+  display: flex;
+  justify-content: center;
+  gap: $spacing-lg;
+}
+
+.rewardItem {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+}
+
+.replayTip {
+  font-size: 22rpx;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-xl;
+}

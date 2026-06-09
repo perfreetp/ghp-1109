@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import LevelCard from '@/components/LevelCard';
 import { levels } from '@/data/levels';
@@ -8,8 +8,13 @@ import { useUserStore } from '@/store/useUserStore';
 import styles from './index.module.scss';
 
 const LevelsPage: React.FC = () => {
-  const { profile } = useUserStore();
+  const { profile, getLevelWithProgress } = useUserStore();
   const [activeFilter, setActiveFilter] = useState('all');
+  const [tick, setTick] = useState(0);
+
+  useDidShow(() => {
+    setTick((t) => t + 1);
+  });
 
   const filters = [
     { id: 'all', label: '全部' },
@@ -17,18 +22,22 @@ const LevelsPage: React.FC = () => {
     { id: '3star', label: '满星' }
   ];
 
-  const filteredLevels = levels.filter((level) => {
+  const mergedLevels = useMemo(() => {
+    return levels.map((lvl) => getLevelWithProgress(lvl));
+  }, [tick, profile.currentLevel, getLevelWithProgress]);
+
+  const filteredLevels = mergedLevels.filter((level) => {
     if (activeFilter === 'uncompleted') return level.unlocked && !level.completed;
     if (activeFilter === '3star') return level.stars === 3;
     return true;
   });
 
-  const completedCount = levels.filter((l) => l.completed).length;
-  const totalCount = levels.length;
-  const totalStars = levels.reduce((acc, l) => acc + l.stars, 0);
+  const completedCount = mergedLevels.filter((l) => l.completed).length;
+  const totalCount = mergedLevels.length;
+  const totalStars = mergedLevels.reduce((acc, l) => acc + l.stars, 0);
 
   const handleLevelClick = (levelId: number) => {
-    const level = levels.find((l) => l.id === levelId);
+    const level = mergedLevels.find((l) => l.id === levelId);
     if (level?.unlocked) {
       Taro.navigateTo({ url: `/pages/game/index?levelId=${levelId}` });
     } else {
@@ -53,7 +62,11 @@ const LevelsPage: React.FC = () => {
         </View>
         <View className={styles.summaryRow} style={{ marginTop: '16rpx' }}>
           <Text style={{ fontSize: '24rpx', opacity: 0.9 }}>收集星星</Text>
-          <Text style={{ fontSize: '28rpx', fontWeight: 600 }}>⭐ {totalStars}</Text>
+          <Text style={{ fontSize: '28rpx', fontWeight: 600 }}>⭐ {totalStars} / {totalCount * 3}</Text>
+        </View>
+        <View className={styles.summaryRow} style={{ marginTop: '8rpx' }}>
+          <Text style={{ fontSize: '24rpx', opacity: 0.9 }}>当前关卡</Text>
+          <Text style={{ fontSize: '28rpx', fontWeight: 600, color: '#FF7BA9' }}>第 {profile.currentLevel} 关</Text>
         </View>
       </View>
 

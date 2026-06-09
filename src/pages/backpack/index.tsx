@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import { useUserStore } from '@/store/useUserStore';
 import ItemCard from '@/components/ItemCard';
@@ -11,6 +11,18 @@ type TabType = 'tool' | 'seed' | 'pot';
 const BackpackPage: React.FC = () => {
   const { items, addItem, useItem, spendCoins } = useUserStore();
   const [activeTab, setActiveTab] = useState<TabType>('tool');
+
+  useEffect(() => {
+    const handler = (tab: TabType) => {
+      if (['tool', 'seed', 'pot'].includes(tab)) {
+        setActiveTab(tab);
+      }
+    };
+    Taro.eventCenter.on('backpack:switchTab', handler);
+    return () => {
+      Taro.eventCenter.off('backpack:switchTab', handler);
+    };
+  }, []);
 
   const tabs = [
     { id: 'tool' as TabType, label: '🛠️ 道具' },
@@ -27,7 +39,7 @@ const BackpackPage: React.FC = () => {
   const handleUseItem = (itemId: string) => {
     Taro.showModal({
       title: '使用道具',
-      content: '前往游戏页面使用此道具',
+      content: '前往关卡页面，进入游戏后可使用此道具',
       confirmText: '去游戏',
       cancelText: '取消',
       success: (res) => {
@@ -43,9 +55,10 @@ const BackpackPage: React.FC = () => {
     if (clayPots && clayPots.count >= 3) {
       useItem('pot_clay', 3);
       addItem('pot_porcelain', 1);
-      Taro.showToast({ title: '合成成功！', icon: 'success' });
+      Taro.vibrateShort && Taro.vibrateShort && Taro.vibrateShort({ type: 'light' }).catch(() => {});
+      Taro.showToast({ title: '合成陶瓷花盆 +1', icon: 'success' });
     } else {
-      Taro.showToast({ title: '陶土花盆不足', icon: 'none' });
+      Taro.showToast({ title: '陶土花盆不足（需3个）', icon: 'none' });
     }
   };
 
@@ -54,7 +67,7 @@ const BackpackPage: React.FC = () => {
     if (!item?.price) return;
     Taro.showModal({
       title: `购买 ${item.name}`,
-      content: `花费 💰${item.price} 购买 1 个`,
+      content: `花费 💰${item.price} 购买 1 个 ${item.name}`,
       success: (res) => {
         if (res.confirm) {
           if (spendCoins(item.price!)) {
