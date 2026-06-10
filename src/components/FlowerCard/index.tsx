@@ -6,11 +6,13 @@ import styles from './index.module.scss';
 
 interface FlowerCardProps {
   flower: Flower;
+  unlocked: boolean;
+  collectedCount: number;
   onClick?: () => void;
 }
 
-const FlowerCard: React.FC<FlowerCardProps> = ({ flower, onClick }) => {
-  const { name, meaning, rarity, color, emoji, unlocked, collectedCount } = flower;
+const FlowerCard: React.FC<FlowerCardProps> = ({ flower, unlocked, collectedCount, onClick }) => {
+  const { name, meaning, rarity, color, emoji } = flower;
 
   const rarityConfig = {
     common: { label: '普通', color: '#ADB5BD' },
@@ -34,6 +36,11 @@ const FlowerCard: React.FC<FlowerCardProps> = ({ flower, onClick }) => {
         <Text className={styles.flowerIcon} style={{ opacity: unlocked ? 1 : 0.3 }}>
           {unlocked ? emoji : '❓'}
         </Text>
+        {!unlocked && (
+          <View className={styles.lockOverlay}>
+            <Text className={styles.lockIcon}>🔒</Text>
+          </View>
+        )}
       </View>
       <Text className={styles.flowerName}>{unlocked ? name : '???'}</Text>
       <Text className={styles.flowerMeaning}>
@@ -41,7 +48,12 @@ const FlowerCard: React.FC<FlowerCardProps> = ({ flower, onClick }) => {
       </Text>
       {unlocked && collectedCount > 0 && (
         <View className={styles.countBadge}>
-          <Text className={styles.countText}>×{collectedCount}</Text>
+          <Text className={styles.countText}>收集×{collectedCount}</Text>
+        </View>
+      )}
+      {!unlocked && (
+        <View className={styles.lockBadge}>
+          <Text className={styles.lockBadgeText}>未解锁🔒</Text>
         </View>
       )}
     </View>

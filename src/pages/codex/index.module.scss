@@ -97,17 +97,21 @@
 
 .detailCard {
   width: 640rpx;
+  max-height: 90vh;
   background: $color-bg-card;
   border-radius: $radius-xl;
   overflow: hidden;
   box-shadow: $shadow-popup;
   animation: slideUp 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .detailHeader {
   padding: $spacing-2xl $spacing-xl;
   text-align: center;
   position: relative;
+  flex-shrink: 0;
 }
 
 .detailFlowerIcon {
@@ -123,6 +127,12 @@
   margin-bottom: $spacing-xs;
 }
 
+.detailMeaning {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-sm;
+}
+
 .detailRarity {
   display: inline-block;
   padding: 6rpx 24rpx;
@@ -135,51 +145,115 @@
 .detailBody {
   padding: $spacing-xl;
   padding-top: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.collectStatsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+}
+
+.collectStatItem {
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  padding: $spacing-md $spacing-sm;
+  text-align: center;
+}
+
+.collectStatValue {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  display: block;
+}
+
+.collectStatLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+  display: block;
 }
 
 .detailSection {
-  margin-bottom: $spacing-lg;
+  margin-bottom: $spacing-xl;
 
   &:last-child {
     margin-bottom: 0;
   }
 }
 
-.detailLabel {
-  font-size: $font-size-sm;
-  color: $color-text-tertiary;
-  margin-bottom: $spacing-xs;
+.detailSectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
 }
 
-.detailValue {
+.detailDesc {
   font-size: $font-size-md;
   color: $color-text-primary;
-  line-height: 1.6;
+  line-height: 1.7;
+  background: $color-bg-hover;
+  padding: $spacing-md;
+  border-radius: $radius-md;
 }
 
-.detailStats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.sourceList {
+  display: flex;
+  flex-direction: column;
   gap: $spacing-md;
 }
 
-.detailStat {
+.sourceItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
   background: $color-bg-hover;
+  padding: $spacing-sm $spacing-md;
   border-radius: $radius-md;
-  padding: $spacing-md;
-  text-align: center;
 }
 
-.detailStatValue {
-  font-size: $font-size-xl;
+.sourceIcon {
+  font-size: 40rpx;
+  flex-shrink: 0;
+}
+
+.sourceInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.sourceLabel {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-bottom: 6rpx;
+  display: block;
+}
+
+.sourceBar {
+  height: 12rpx;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: $radius-round;
+  overflow: hidden;
+}
+
+.sourceBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-round;
+  transition: width 0.3s ease;
+}
+
+.sourceCount {
+  font-size: $font-size-lg;
   font-weight: $font-weight-bold;
-  color: $color-primary;
-}
-
-.detailStatLabel {
-  font-size: $font-size-xs;
-  color: $color-text-tertiary;
-  margin-top: 4rpx;
+  color: $color-text-primary;
+  flex-shrink: 0;
+  min-width: 60rpx;
+  text-align: right;
 }
 
 .detailCloseBtn {
@@ -194,6 +268,7 @@
   align-items: center;
   justify-content: center;
   transition: all $transition-base;
+  z-index: 10;
 
   &:active {
     transform: scale(0.9);

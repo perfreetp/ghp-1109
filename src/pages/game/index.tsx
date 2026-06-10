@@ -3,8 +3,8 @@ import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import classnames from 'classnames';
 import GameBoard from '@/components/GameBoard';
-import { Tile, Level } from '@/types/game';
-import { getLevelById, levels } from '@/data/levels';
+import { Tile, Level, LevelGoal } from '@/types/game';
+import { getLevelById } from '@/data/levels';
 import { useUserStore } from '@/store/useUserStore';
 import {
   generateBoard,
@@ -18,12 +18,27 @@ import {
 } from '@/utils/gameLogic';
 import styles from './index.module.scss';
 
+const flowerTileNames: Record<number, { flowerId: number; name: string; emoji: string }> = {
+  0: { flowerId: 1, name: '玫瑰', emoji: '🌹' },
+  1: { flowerId: 2, name: '向日葵', emoji: '🌻' },
+  2: { flowerId: 3, name: '郁金香', emoji: '🌷' },
+  3: { flowerId: 4, name: '樱花', emoji: '🌸' },
+  4: { flowerId: 5, name: '百合', emoji: '💮' },
+  5: { flowerId: 6, name: '薰衣草', emoji: '🌾' }
+};
+
+const toolNameMap: Record<string, string> = {
+  shovel: '铲子',
+  watercan: '浇水壶',
+  rainbow: '彩虹花'
+};
+
 const GamePage: React.FC = () => {
   const router = useRouter();
   const levelId = Number(router.params.levelId || 1);
   const level: Level = getLevelById(levelId) || getLevelById(1)!;
 
-  const { items, useItem, saveLevelResult, profile, updateProfile } = useUserStore();
+  const { items, useItem, saveLevelResult, profile } = useUserStore();
 
   const [board, setBoard] = useState<Tile[][]>(() => generateBoard(level.boardSize, level.tileTypes));
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
@@ -40,10 +55,14 @@ const GamePage: React.FC = () => {
   const [earnedStars, setEarnedStars] = useState(0);
   const [resultSaved, setResultSaved] = useState(false);
   const [lastRewards, setLastRewards] = useState<{ coins: number; seeds?: number; firstTime: boolean } | null>(null);
+  const [collectTypeCount, setCollectTypeCount] = useState<Record<number, number>>({});
+  const [toolsUsedCount, setToolsUsedCount] = useState<Record<string, number>>({});
 
   const comboTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const currentLevelIdRef = useRef(levelId);
   const initRef = useRef(0);
+  const collectTypeCountRef = useRef<Record<number, number>>({});
+  const tutorialShownRef = useRef(false);
 
   const resetGame = (targetLevelId: number) => {
     const targetLevel = getLevelById(targetLevelId) || getLevelById(1)!;
@@ -61,6 +80,10 @@ const GamePage: React.FC = () => {
     setActiveTool(null);
     setResultSaved(false);
     setLastRewards(null);
+    setCollectTypeCount({});
+    setToolsUsedCount({});
+    collectTypeCountRef.current = {};
+    tutorialShownRef.current = false;
   };
 
   useEffect(() => {
@@ -75,16 +98,45 @@ const GamePage: React.FC = () => {
     return getLevelById(id) || level;
   };
 
+  const getGoalCurrentValue = (goal: LevelGoal): number => {
+    const lvl = currentLevel();
+    switch (goal.type) {
+      case 'score':
+        return score;
+      case 'movesLimit':
+        return lvl.moves - movesLeft;
+      case 'collectType':
+        return collectTypeCount[goal.flowerType!] || 0;
+      case 'comboCount':
+        return maxCombo;
+      case 'useTool':
+        return toolsUsedCount[goal.toolId!] || 0;
+      default:
+        return 0;
+    }
+  };
+
+  const isGoalReached = (goal: LevelGoal): boolean => {
+    return getGoalCurrentValue(goal) >= goal.target;
+  };
+
   const processMatches = async (currentBoard: Tile[][], scoreSetter: (n: number) => void): Promise<Tile[][]> => {
     let workingBoard = currentBoard;
     let localCombo = 0;
     let totalScoreGain = 0;
+    collectTypeCountRef.current = { ...collectTypeCount };
 
     let matches = findMatches(workingBoard);
     while (matches.length > 0) {
       localCombo++;
       const scoreGain = calculateScore(matches, localCombo);
       totalScoreGain += scoreGain;
+
+      matches.forEach((tile) => {
+        if (tile.type >= 0) {
+          collectTypeCountRef.current[tile.type] = (collectTypeCountRef.current[tile.type] || 0) + 1;
+        }
+      });
 
       if (localCombo >= 2) {
         setComboNumber(localCombo);
@@ -107,6 +159,8 @@ const GamePage: React.FC = () => {
       matches = findMatches(workingBoard);
     }
 
+    setCollectTypeCount({ ...collectTypeCountRef.current });
+
     if (totalScoreGain > 0) {
       scoreSetter(totalScoreGain);
     }
@@ -127,6 +181,20 @@ const GamePage: React.FC = () => {
     if (remainingMoves <= 0) {
       setGameOver(true);
       setGameResult('lose');
+    }
+  };
+
+  const showTutorialIfNeeded = (toolId: string) => {
+    const lvl = currentLevel();
+    if (lvl.tutorialTool === toolId && !tutorialShownRef.current) {
+      tutorialShownRef.current = true;
+      const toolName = toolNameMap[toolId] || toolId;
+      Taro.showModal({
+        title: '本关教学',
+        content: `使用 ${toolName} 可通过关卡目标！`,
+        showCancel: false,
+        confirmText: '我知道了'
+      });
     }
   };
 
@@ -168,7 +236,9 @@ const GamePage: React.FC = () => {
     if (isAnimating || gameOver) return;
 
     if (activeTool === 'shovel') {
+      showTutorialIfNeeded('shovel');
       if (useItem('shovel', 1)) {
+        setToolsUsedCount((prev) => ({ ...prev, shovel: (prev.shovel || 0) + 1 }));
         setIsAnimating(true);
         const newBoard = removeMatches(board, [tile]);
         setBoard(newBoard);
@@ -189,7 +259,9 @@ const GamePage: React.FC = () => {
     }
 
     if (activeTool === 'watercan') {
+      showTutorialIfNeeded('watercan');
       if (useItem('watercan', 1)) {
+        setToolsUsedCount((prev) => ({ ...prev, watercan: (prev.watercan || 0) + 1 }));
         setIsAnimating(true);
         const rowTiles = board[tile.row];
         const colTiles = board.map((r) => r[tile.col]);
@@ -197,6 +269,31 @@ const GamePage: React.FC = () => {
         const newBoard = removeMatches(board, toRemove);
         setBoard(newBoard);
         await new Promise((r) => setTimeout(r, 250));
+        let addedScore = 0;
+        const finalBoard = await processMatches(dropTiles(newBoard, currentLevel().tileTypes), (n) => {
+          addedScore += n;
+        });
+        const nextScore = score + addedScore;
+        const nextMoves = movesLeft - 1;
+        setScore(nextScore);
+        setIsAnimating(false);
+        setActiveTool(null);
+        setMovesLeft(nextMoves);
+        tryEndGameAfterMove(nextScore, nextMoves);
+      }
+      return;
+    }
+
+    if (activeTool === 'rainbow') {
+      showTutorialIfNeeded('rainbow');
+      if (useItem('rainbow', 1)) {
+        setToolsUsedCount((prev) => ({ ...prev, rainbow: (prev.rainbow || 0) + 1 }));
+        setIsAnimating(true);
+        const targetType = tile.type;
+        const toRemove = board.flat().filter((t) => t.type === targetType);
+        const newBoard = removeMatches(board, toRemove);
+        setBoard(newBoard);
+        await new Promise((r) => setTimeout(r, 300));
         let addedScore = 0;
         const finalBoard = await processMatches(dropTiles(newBoard, currentLevel().tileTypes), (n) => {
           addedScore += n;
@@ -235,11 +332,15 @@ const GamePage: React.FC = () => {
   useEffect(() => {
     if (!gameOver || gameResult !== 'win' || resultSaved) return;
     const lvl = currentLevel();
-    const { rewarded, rewards } = saveLevelResult(lvl.id, score, earnedStars);
+    const { rewarded, rewards } = saveLevelResult(lvl.id, score, earnedStars, {
+      collectedFlowers: collectTypeCount,
+      maxCombo,
+      usedTools: toolsUsedCount
+    });
     setLastRewards({ coins: rewards.coins, seeds: rewards.seeds, firstTime: rewarded });
     setResultSaved(true);
     Taro.vibrateShort && useUserStore.getState().profile.settings.vibrationEnabled && Taro.vibrateShort({ type: 'medium' }).catch(() => {});
-  }, [gameOver, gameResult, earnedStars, resultSaved, score, saveLevelResult]);
+  }, [gameOver, gameResult, earnedStars, resultSaved, score, saveLevelResult, collectTypeCount, maxCombo, toolsUsedCount]);
 
   const handleToolSelect = (toolId: string) => {
     const tool = items.find((i) => i.id === toolId);
@@ -269,7 +370,55 @@ const GamePage: React.FC = () => {
   };
 
   const lvl = currentLevel();
-  const targetPercent = Math.min(100, (score / lvl.targetScore) * 100);
+
+  const collectedFlowerEntries = Object.entries(collectTypeCount)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  const usedToolEntries = Object.entries(toolsUsedCount)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  const renderGoalDisplay = (goal: LevelGoal, index: number) => {
+    const current = getGoalCurrentValue(goal);
+    const reached = isGoalReached(goal);
+    let displayText = '';
+    let displayIcon = goal.icon || '📋';
+
+    switch (goal.type) {
+      case 'score':
+        displayText = `🎯 ${score.toLocaleString()}/${goal.target.toLocaleString()}`;
+        break;
+      case 'movesLimit':
+        displayText = `👣 ${lvl.moves - movesLeft}/${lvl.moves}`;
+        break;
+      case 'collectType':
+        const flowerInfo = flowerTileNames[(goal.flowerType || 1) - 1];
+        displayIcon = flowerInfo?.emoji || displayIcon;
+        displayText = `${displayIcon} ${collectTypeCount[goal.flowerType!] || 0}/${goal.target}`;
+        break;
+      case 'comboCount':
+        displayText = `⚡ ${maxCombo}/${goal.target}`;
+        break;
+      case 'useTool':
+        const toolItem = items.find((i) => i.id === goal.toolId);
+        displayIcon = toolItem?.icon || '🔧';
+        displayText = `${displayIcon} ${toolsUsedCount[goal.toolId!] || 0}/${goal.target}`;
+        break;
+      default:
+        displayText = `${current}/${goal.target}`;
+    }
+
+    return (
+      <View
+        key={index}
+        className={classnames(styles.goalItem, reached && styles.goalReached)}
+      >
+        <Text className={styles.goalText}>{displayText}</Text>
+        {reached && <Text className={styles.goalCheck}>✅</Text>}
+      </View>
+    );
+  };
 
   return (
     <View className={styles.pageContainer}>
@@ -301,11 +450,10 @@ const GamePage: React.FC = () => {
         </View>
       </View>
 
-      <View className={styles.targetSection}>
-        <Text className={styles.targetTitle}>🎯 目标分数：{lvl.targetScore.toLocaleString()}</Text>
-        <View className={styles.targetBar}>
-          <View className={styles.targetFill} style={{ width: `${targetPercent}%` }} />
-          <Text className={styles.targetText}>{Math.floor(targetPercent)}%</Text>
+      <View className={styles.goalsSection}>
+        <Text className={styles.goalsTitle}>🎯 关卡目标</Text>
+        <View className={styles.goalsList}>
+          {lvl.goals.map((goal, index) => renderGoalDisplay(goal, index))}
         </View>
       </View>
 
@@ -365,6 +513,74 @@ const GamePage: React.FC = () => {
                     <Text key={s} className={classnames(styles.starIcon, s <= earnedStars && styles.active)}>⭐</Text>
                   ))}
                 </View>
+
+                <View className={styles.achievementCard}>
+                  <Text className={styles.achievementTitle}>🏆 本局成就</Text>
+                  <View className={styles.achievementList}>
+                    {lvl.goals.map((goal, idx) => {
+                      const reached = isGoalReached(goal);
+                      let icon = goal.icon || '📋';
+                      if (goal.type === 'collectType') {
+                        const fi = flowerTileNames[(goal.flowerType || 1) - 1];
+                        icon = fi?.emoji || icon;
+                      }
+                      if (goal.type === 'useTool') {
+                        const ti = items.find((i) => i.id === goal.toolId);
+                        icon = ti?.icon || icon;
+                      }
+                      return (
+                        <View key={idx} className={styles.achievementItem}>
+                          <Text className={styles.achievementIcon}>{reached ? '✅' : '❌'}</Text>
+                          <Text className={styles.achievementGoalIcon}>{icon}</Text>
+                          <Text className={classnames(styles.achievementLabel, reached && styles.reachedLabel)}>
+                            {goal.label}{reached ? ' 达成' : ' (未达成)'}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {collectedFlowerEntries.length > 0 && (
+                    <View className={styles.statsSection}>
+                      <Text className={styles.statsSectionTitle}>🌸 收集统计</Text>
+                      <View className={styles.statsGrid}>
+                        {collectedFlowerEntries.map(([type, count]) => {
+                          const fi = flowerTileNames[Number(type)];
+                          return (
+                            <View key={type} className={styles.statsItem}>
+                              <Text className={styles.statsItemIcon}>{fi?.emoji || '❓'}</Text>
+                              <Text className={styles.statsItemName}>{fi?.name || '未知'}</Text>
+                              <Text className={styles.statsItemCount}>×{count}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  <View className={styles.statsRow}>
+                    <Text className={styles.statsRowItem}>⚡ 最大连击：{maxCombo} 次</Text>
+                  </View>
+
+                  {usedToolEntries.length > 0 && (
+                    <View className={styles.statsSection}>
+                      <Text className={styles.statsSectionTitle}>🔧 使用道具</Text>
+                      <View className={styles.statsGrid}>
+                        {usedToolEntries.map(([toolId, count]) => {
+                          const ti = items.find((i) => i.id === toolId);
+                          return (
+                            <View key={toolId} className={styles.statsItem}>
+                              <Text className={styles.statsItemIcon}>{ti?.icon || '🔧'}</Text>
+                              <Text className={styles.statsItemName}>{ti?.name || toolId}</Text>
+                              <Text className={styles.statsItemCount}>×{count}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                </View>
+
                 {lastRewards && lastRewards.firstTime && (
                   <View className={styles.rewardBox}>
                     <Text className={styles.rewardTitle}>🎁 首次通关奖励</Text>

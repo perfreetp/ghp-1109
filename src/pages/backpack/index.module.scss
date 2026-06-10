@@ -135,3 +135,178 @@
   font-size: $font-size-md;
   color: $color-text-tertiary;
 }
+
+.potCard {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.potCardHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.potIconWrap {
+  width: 100rpx;
+  height: 100rpx;
+  background: $color-bg-hover;
+  border-radius: $radius-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.potIcon {
+  font-size: 60rpx;
+}
+
+.potInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.potName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+  display: block;
+}
+
+.potDesc {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  line-height: 1.5;
+  display: block;
+  margin-bottom: 6rpx;
+}
+
+.potRarity {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  border-radius: $radius-xs;
+}
+
+.rarity_common {
+  background: rgba(173, 181, 189, 0.15);
+}
+
+.rarity_rare {
+  background: rgba(116, 192, 252, 0.15);
+}
+
+.rarity_epic {
+  background: rgba(218, 119, 242, 0.15);
+}
+
+.potRarityText {
+  font-size: 20rpx;
+  font-weight: $font-weight-medium;
+
+  .rarity_common & {
+    color: #ADB5BD;
+  }
+
+  .rarity_rare & {
+    color: #74C0FC;
+  }
+
+  .rarity_epic & {
+    color: #DA77F2;
+  }
+}
+
+.potCountBadge {
+  background: $color-primary;
+  padding: 6rpx 16rpx;
+  border-radius: $radius-round;
+  flex-shrink: 0;
+}
+
+.potCountText {
+  font-size: $font-size-sm;
+  color: $color-text-white;
+  font-weight: $font-weight-bold;
+}
+
+.potActions {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-md;
+}
+
+.potActionBtn {
+  flex: 1;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+.btnPrimary {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+}
+
+.btnSecondary {
+  background: $color-bg-hover;
+  border: 2rpx solid rgba($color-primary, 0.3);
+}
+
+.btnFull {
+  flex: 1;
+}
+
+.potActionBtnText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+
+  .btnPrimary & {
+    color: $color-text-white;
+  }
+
+  .btnSecondary & {
+    color: $color-primary;
+  }
+}
+
+.potBuyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 2rpx solid $color-divider;
+}
+
+.potBuyPrice {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-warning;
+}
+
+.potBuyLink {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+  padding: 6rpx 20rpx;
+  background: rgba($color-primary, 0.1);
+  border-radius: $radius-button;
+}

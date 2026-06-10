@@ -10,7 +10,9 @@ export const flowers: Flower[] = [
     color: '#FF6B6B',
     emoji: '🌹',
     unlocked: true,
-    collectedCount: 15
+    collectedCount: 15,
+    growthSeconds: 60,
+    harvestReward: 1
   },
   {
     id: 2,
@@ -21,7 +23,9 @@ export const flowers: Flower[] = [
     color: '#FFD93D',
     emoji: '🌻',
     unlocked: true,
-    collectedCount: 12
+    collectedCount: 12,
+    growthSeconds: 90,
+    harvestReward: 1
   },
   {
     id: 3,
@@ -32,7 +36,9 @@ export const flowers: Flower[] = [
     color: '#E85C90',
     emoji: '🌷',
     unlocked: true,
-    collectedCount: 8
+    collectedCount: 8,
+    growthSeconds: 180,
+    harvestReward: 1
   },
   {
     id: 4,
@@ -43,7 +49,9 @@ export const flowers: Flower[] = [
     color: '#FFB6C8',
     emoji: '🌸',
     unlocked: true,
-    collectedCount: 6
+    collectedCount: 6,
+    growthSeconds: 240,
+    harvestReward: 1
   },
   {
     id: 5,
@@ -54,7 +62,9 @@ export const flowers: Flower[] = [
     color: '#FFFFFF',
     emoji: '💐',
     unlocked: true,
-    collectedCount: 5
+    collectedCount: 5,
+    growthSeconds: 300,
+    harvestReward: 2
   },
   {
     id: 6,
@@ -65,7 +75,9 @@ export const flowers: Flower[] = [
     color: '#FF9FF3',
     emoji: '🌺',
     unlocked: true,
-    collectedCount: 3
+    collectedCount: 3,
+    growthSeconds: 480,
+    harvestReward: 2
   },
   {
     id: 7,
@@ -76,7 +88,9 @@ export const flowers: Flower[] = [
     color: '#FF4757',
     emoji: '🏵️',
     unlocked: true,
-    collectedCount: 2
+    collectedCount: 2,
+    growthSeconds: 600,
+    harvestReward: 2
   },
   {
     id: 8,
@@ -87,7 +101,9 @@ export const flowers: Flower[] = [
     color: '#A29BFE',
     emoji: '🪻',
     unlocked: true,
-    collectedCount: 1
+    collectedCount: 1,
+    growthSeconds: 900,
+    harvestReward: 3
   },
   {
     id: 9,
@@ -98,7 +114,9 @@ export const flowers: Flower[] = [
     color: '#DFE6E9',
     emoji: '🌼',
     unlocked: false,
-    collectedCount: 0
+    collectedCount: 0,
+    growthSeconds: 1200,
+    harvestReward: 3
   },
   {
     id: 10,
@@ -109,7 +127,9 @@ export const flowers: Flower[] = [
     color: '#6C5CE7',
     emoji: '🌿',
     unlocked: false,
-    collectedCount: 0
+    collectedCount: 0,
+    growthSeconds: 1500,
+    harvestReward: 3
   },
   {
     id: 11,
@@ -120,7 +140,9 @@ export const flowers: Flower[] = [
     color: '#FCBAD3',
     emoji: '🌾',
     unlocked: false,
-    collectedCount: 0
+    collectedCount: 0,
+    growthSeconds: 720,
+    harvestReward: 2
   },
   {
     id: 12,
@@ -131,7 +153,9 @@ export const flowers: Flower[] = [
     color: '#FFEAA7',
     emoji: '🍂',
     unlocked: false,
-    collectedCount: 0
+    collectedCount: 0,
+    growthSeconds: 360,
+    harvestReward: 1
   }
 ];
 

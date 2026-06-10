@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, Image, ScrollView } from '@tarojs/components';
+import { View, Text, ScrollView } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import FlowerCard from '@/components/FlowerCard';
 import { flowers } from '@/data/flowers';
 import { Flower } from '@/types/game';
+import { useUserStore } from '@/store/useUserStore';
 import styles from './index.module.scss';
 
 type FilterType = 'all' | 'common' | 'rare' | 'epic' | 'legendary';
@@ -11,6 +13,12 @@ type FilterType = 'all' | 'common' | 'rare' | 'epic' | 'legendary';
 const CodexPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selectedFlower, setSelectedFlower] = useState<Flower | null>(null);
+
+  const {
+    collectedFlowerIds,
+    getFlowerCollectCount,
+    getFlowerSourceRecord
+  } = useUserStore();
 
   const filters = [
     { id: 'all' as FilterType, label: '全部' },
@@ -23,7 +31,7 @@ const CodexPage: React.FC = () => {
   const filteredFlowers =
     activeFilter === 'all' ? flowers : flowers.filter((f) => f.rarity === activeFilter);
 
-  const unlockedCount = flowers.filter((f) => f.unlocked).length;
+  const unlockedCount = flowers.filter((f) => collectedFlowerIds.includes(f.id)).length;
   const totalCount = flowers.length;
 
   const rarityColors = {
@@ -38,6 +46,41 @@ const CodexPage: React.FC = () => {
     rare: '稀有',
     epic: '史诗',
     legendary: '传说'
+  };
+
+  const handleFlowerClick = (flower: Flower) => {
+    const unlocked = collectedFlowerIds.includes(flower.id);
+    if (!unlocked) {
+      Taro.showToast({ title: '完成相应关卡可解锁', icon: 'none' });
+      return;
+    }
+    setSelectedFlower(flower);
+  };
+
+  const renderSourceItem = (icon: string, label: string, count: number) => (
+    <View className={styles.sourceItem}>
+      <Text className={styles.sourceIcon}>{icon}</Text>
+      <View className={styles.sourceInfo}>
+        <Text className={styles.sourceLabel}>{label}</Text>
+        <View className={styles.sourceBar}>
+          <View
+            className={styles.sourceBarFill}
+            style={{
+              width: totalCollectCount > 0 ? `${(count / totalCollectCount) * 100}%` : '0%'
+            }}
+          />
+        </View>
+      </View>
+      <Text className={styles.sourceCount}>{count}</Text>
+    </View>
+  );
+
+  const totalCollectCount = selectedFlower ? getFlowerCollectCount(selectedFlower.id) : 0;
+  const sourceRecord = selectedFlower ? getFlowerSourceRecord(selectedFlower.id) : {
+    levelReward: 0,
+    taskReward: 0,
+    gardenHarvest: 0,
+    shop: 0
   };
 
   return (
@@ -70,7 +113,9 @@ const CodexPage: React.FC = () => {
           <FlowerCard
             key={flower.id}
             flower={flower}
-            onClick={() => flower.unlocked && setSelectedFlower(flower)}
+            unlocked={collectedFlowerIds.includes(flower.id)}
+            collectedCount={getFlowerCollectCount(flower.id)}
+            onClick={() => handleFlowerClick(flower)}
           />
         ))}
       </View>
@@ -84,6 +129,7 @@ const CodexPage: React.FC = () => {
             <View className={styles.detailHeader} style={{ backgroundColor: `${selectedFlower.color}15` }}>
               <Text className={styles.detailFlowerIcon}>{selectedFlower.emoji}</Text>
               <Text className={styles.detailName}>{selectedFlower.name}</Text>
+              <Text className={styles.detailMeaning}>{selectedFlower.meaning}</Text>
               <View
                 className={styles.detailRarity}
                 style={{ backgroundColor: rarityColors[selectedFlower.rarity] }}
@@ -92,23 +138,34 @@ const CodexPage: React.FC = () => {
               </View>
             </View>
             <View className={styles.detailBody}>
-              <View className={styles.detailStats}>
-                <View className={styles.detailStat}>
-                  <Text className={styles.detailStatValue}>{selectedFlower.collectedCount}</Text>
-                  <Text className={styles.detailStatLabel}>收集数量</Text>
+              <View className={styles.collectStatsRow}>
+                <View className={styles.collectStatItem}>
+                  <Text className={styles.collectStatValue}>{totalCollectCount}</Text>
+                  <Text className={styles.collectStatLabel}>收集了{totalCollectCount}次</Text>
                 </View>
-                <View className={styles.detailStat}>
-                  <Text className={styles.detailStatValue}>✓</Text>
-                  <Text className={styles.detailStatLabel}>已解锁</Text>
+                <View className={styles.collectStatItem}>
+                  <Text className={styles.collectStatValue}>{selectedFlower.growthSeconds}s</Text>
+                  <Text className={styles.collectStatLabel}>成长时间</Text>
+                </View>
+                <View className={styles.collectStatItem}>
+                  <Text className={styles.collectStatValue}>+{selectedFlower.harvestReward}</Text>
+                  <Text className={styles.collectStatLabel}>每次收获花种</Text>
                 </View>
               </View>
+
               <View className={styles.detailSection}>
-                <Text className={styles.detailLabel}>🌸 花语</Text>
-                <Text className={styles.detailValue}>{selectedFlower.meaning}</Text>
+                <Text className={styles.detailSectionTitle}>📊 来源分布</Text>
+                <View className={styles.sourceList}>
+                  {renderSourceItem('🏆', '关卡奖励', sourceRecord.levelReward)}
+                  {renderSourceItem('📋', '任务奖励', sourceRecord.taskReward)}
+                  {renderSourceItem('🌱', '花园收获', sourceRecord.gardenHarvest)}
+                  {renderSourceItem('🏪', '商店', sourceRecord.shop)}
+                </View>
               </View>
+
               <View className={styles.detailSection}>
-                <Text className={styles.detailLabel}>📜 详情</Text>
-                <Text className={styles.detailValue}>{selectedFlower.description}</Text>
+                <Text className={styles.detailSectionTitle}>📜 花之详情</Text>
+                <Text className={styles.detailDesc}>{selectedFlower.description}</Text>
               </View>
             </View>
           </View>

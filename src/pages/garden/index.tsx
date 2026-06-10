@@ -1,10 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro, { useDidShow, useDidHide } from '@tarojs/taro';
 import classnames from 'classnames';
 import { useUserStore } from '@/store/useUserStore';
 import { getFlowerById } from '@/data/flowers';
-import { Item } from '@/types/game';
 import styles from './index.module.scss';
 
 interface SeedOption {
@@ -15,15 +14,61 @@ interface SeedOption {
   count: number;
 }
 
+const POT_HARVEST_MAP: Record<number, number> = {
+  0: 1,
+  1: 1,
+  2: 2
+};
+
 const GardenPage: React.FC = () => {
-  const { plantSlots, collectedFlowerIds, items, plantFlower, harvestFlower } = useUserStore();
+  const {
+    plantSlots,
+    collectedFlowerIds,
+    items,
+    plantFlower,
+    harvestFlower,
+    checkAndUpdatePlantGrowth,
+    upgradeSlotPot,
+    expandGardenSlot
+  } = useUserStore();
+
   const [, setTick] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useDidShow(() => setTick((t) => t + 1));
+  const refreshGrowth = () => {
+    checkAndUpdatePlantGrowth();
+    setTick((t) => t + 1);
+  };
 
-  const occupiedCount = plantSlots.filter((s) => s.occupied).length;
+  useDidShow(() => {
+    checkAndUpdatePlantGrowth();
+    setTick((t) => t + 1);
+    if (!timerRef.current) {
+      timerRef.current = setInterval(() => {
+        refreshGrowth();
+      }, 3000);
+    }
+  });
+
+  useDidHide(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  });
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
+
   const totalSlots = plantSlots.length;
-  const flowerTypes = new Set(plantSlots.filter((s) => s.occupied).map((s) => s.flowerId)).size;
+  const plantedCount = plantSlots.filter((s) => s.occupied).length;
+  const harvestableCount = plantSlots.filter((s) => s.occupied && (s.growthStage || 0) === 3).length;
 
   const seedOptions: SeedOption[] = useMemo(() => {
     const mapping: Array<Omit<SeedOption, 'count'>> = [
@@ -36,6 +81,16 @@ const GardenPage: React.FC = () => {
       const found = items.find((i) => i.id === m.seedItemId);
       return { ...m, count: found?.count || 0 };
     });
+  }, [items]);
+
+  const clayPotCount = useMemo(() => {
+    const found = items.find((i) => i.id === 'pot_clay');
+    return found?.count || 0;
+  }, [items]);
+
+  const porcelainPotCount = useMemo(() => {
+    const found = items.find((i) => i.id === 'pot_porcelain');
+    return found?.count || 0;
   }, [items]);
 
   const openPlantSheet = (slotId: number) => {
@@ -69,6 +124,70 @@ const GardenPage: React.FC = () => {
     });
   };
 
+  const openSlotMenu = (slotId: number) => {
+    const slot = plantSlots.find((s) => s.id === slotId);
+    if (!slot) return;
+    const currentPotLevel = slot.potLevel || 0;
+
+    const items: string[] = [
+      '🌱 种植花种',
+      `🪴 此格升级陶土 (库存×${clayPotCount})${currentPotLevel >= 1 ? ' ✓已装备' : ''}`,
+      `🏺 此格升级陶瓷 (库存×${porcelainPotCount})${currentPotLevel >= 2 ? ' ✓已装备' : ''}`
+    ];
+
+    Taro.showActionSheet({
+      itemList: items,
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          openPlantSheet(slotId);
+        } else if (res.tapIndex === 1) {
+          handleUpgradeClay(slotId);
+        } else if (res.tapIndex === 2) {
+          handleUpgradePorcelain(slotId);
+        }
+      }
+    });
+  };
+
+  const handleUpgradeClay = (slotId: number) => {
+    const result = upgradeSlotPot(slotId, 'pot_clay');
+    if (result.success) {
+      Taro.showToast({ title: '升级成功，成长+20%', icon: 'success' });
+    } else {
+      if (result.message.includes('数量不足')) {
+        Taro.showToast({ title: '陶土花盆不足，去【背包-花盆】合成获取', icon: 'none', duration: 2500 });
+      } else {
+        Taro.showToast({ title: result.message, icon: 'none' });
+      }
+    }
+  };
+
+  const handleUpgradePorcelain = (slotId: number) => {
+    const result = upgradeSlotPot(slotId, 'pot_porcelain');
+    if (result.success) {
+      Taro.showToast({ title: '升级成功，成长+50% 收获翻倍', icon: 'success' });
+    } else {
+      if (result.message.includes('数量不足')) {
+        Taro.showToast({ title: '陶瓷花盆不足，去【背包-花盆】合成获取', icon: 'none', duration: 2500 });
+      } else {
+        Taro.showToast({ title: result.message, icon: 'none' });
+      }
+    }
+  };
+
+  const handleExpandGarden = () => {
+    const result = expandGardenSlot('pot_clay');
+    if (result.success) {
+      Taro.showToast({ title: result.message, icon: 'success' });
+    } else {
+      if (result.message.includes('数量不足')) {
+        Taro.showToast({ title: '花盆不足，去【背包-花盆】合成获取', icon: 'none', duration: 2500 });
+      } else {
+        Taro.showToast({ title: result.message, icon: 'none' });
+      }
+    }
+  };
+
   const handlePlotClick = (slotId: number) => {
     const slot = plantSlots.find((s) => s.id === slotId);
     if (!slot) return;
@@ -77,9 +196,13 @@ const GardenPage: React.FC = () => {
       const flower = getFlowerById(slot.flowerId!);
       const stage = slot.growthStage || 0;
       const isReady = stage === 3;
+      const potLevel = slot.potLevel || 0;
+      const harvestMultiplier = POT_HARVEST_MAP[potLevel] || 1;
+      const rewardN = (flower?.harvestReward || 1) * harvestMultiplier;
+
       Taro.showModal({
         title: `${flower?.emoji || '🌸'} ${flower?.name || '花朵'}`,
-        content: `生长阶段：${stage + 1}/4${isReady ? ' ✅已成熟可收获' : ''}\n\n花语：${flower?.meaning || ''}`,
+        content: `生长阶段：${stage + 1}/4${isReady ? ' ✅已成熟可收获' : ''}\n\n花语：${flower?.meaning || ''}${isReady ? `\n\n预计获得：${rewardN} 个花种` : ''}`,
         confirmText: isReady ? '🌾 收获' : '关闭',
         showCancel: isReady,
         cancelText: '关闭',
@@ -87,13 +210,12 @@ const GardenPage: React.FC = () => {
           if (isReady && res.confirm) {
             const result = harvestFlower(slotId);
             if (result.success) {
-              const harvestedFlower = getFlowerById(result.flowerId!);
               Taro.showToast({
-                title: `收获 ${harvestedFlower?.name || ''} +1`,
+                title: `收获成功，花种+${result.reward || 1}`,
                 icon: 'success'
               });
             } else {
-              Taro.showToast({ title: '收获失败', icon: 'none' });
+              Taro.showToast({ title: '还没成熟哦', icon: 'none' });
             }
           } else if (!isReady && res.confirm) {
             Taro.showToast({ title: '耐心等待成熟吧~', icon: 'none' });
@@ -101,7 +223,15 @@ const GardenPage: React.FC = () => {
         }
       });
     } else {
-      openPlantSheet(slotId);
+      openSlotMenu(slotId);
+    }
+  };
+
+  const handlePlotLongPress = (slotId: number) => {
+    const slot = plantSlots.find((s) => s.id === slotId);
+    if (!slot) return;
+    if (!slot.occupied) {
+      openSlotMenu(slotId);
     }
   };
 
@@ -124,6 +254,13 @@ const GardenPage: React.FC = () => {
     });
   };
 
+  const getPotIcon = (potLevel: number | undefined) => {
+    if (!potLevel || potLevel === 0) return null;
+    if (potLevel === 1) return '🪴';
+    if (potLevel === 2) return '🏺';
+    return null;
+  };
+
   return (
     <ScrollView scrollY className='pageContainer'>
       <View className={styles.gardenHeader}>
@@ -138,16 +275,16 @@ const GardenPage: React.FC = () => {
 
       <View className={styles.statsRow}>
         <View className={styles.statItem}>
-          <Text className={styles.statValue}>{occupiedCount}</Text>
-          <Text className={styles.statLabel}>种植中/ {totalSlots}</Text>
+          <Text className={styles.statValue}>{totalSlots}</Text>
+          <Text className={styles.statLabel}>总格子</Text>
         </View>
         <View className={styles.statItem}>
-          <Text className={styles.statValue}>{flowerTypes}</Text>
-          <Text className={styles.statLabel}>花种类</Text>
+          <Text className={styles.statValue}>{plantedCount}</Text>
+          <Text className={styles.statLabel}>已种植</Text>
         </View>
         <View className={styles.statItem}>
-          <Text className={styles.statValue}>{collectedFlowerIds.length}</Text>
-          <Text className={styles.statLabel}>已收集</Text>
+          <Text className={classnames(styles.statValue, styles.harvestableValue)}>{harvestableCount}</Text>
+          <Text className={styles.statLabel}>可收获</Text>
         </View>
       </View>
 
@@ -169,6 +306,7 @@ const GardenPage: React.FC = () => {
           const stageEmoji = ['🌱', '🌿', '🪴', flower?.emoji || '🌸'];
           const stage = slot.growthStage || 0;
           const ready = slot.occupied && stage === 3;
+          const potIcon = getPotIcon(slot.potLevel);
           return (
             <View
               key={slot.id}
@@ -178,12 +316,13 @@ const GardenPage: React.FC = () => {
                 ready && styles.ready
               )}
               onClick={() => handlePlotClick(slot.id)}
+              onLongPress={() => handlePlotLongPress(slot.id)}
             >
               {slot.occupied ? (
                 <>
                   <Text className={styles.plotFlower}>{stageEmoji[stage]}</Text>
-                  <Text className={styles.plotStage}>
-                    {ready ? '✓ 可收获' : `${stage + 1}/4`}
+                  <Text className={classnames(styles.plotStage, ready && styles.plotStageReady)}>
+                    {ready ? '可收获' : `${stage + 1}/4`}
                   </Text>
                 </>
               ) : (
@@ -192,9 +331,22 @@ const GardenPage: React.FC = () => {
                   <Text className={styles.plotEmptyText}>点此种植</Text>
                 </>
               )}
+              {potIcon && (
+                <Text className={styles.plotPotIcon}>{potIcon}</Text>
+              )}
             </View>
           );
         })}
+      </View>
+
+      <View className={styles.expandCard}>
+        <View className={styles.expandInfo}>
+          <Text className={styles.expandTitle}>🏗️ 扩建花园</Text>
+          <Text className={styles.expandDesc}>消耗1个陶土花盆，扩建1个新格子</Text>
+        </View>
+        <View className={styles.expandBtn} onClick={handleExpandGarden}>
+          <Text className={styles.expandBtnText}>扩建花园</Text>
+        </View>
       </View>
 
       <View className={styles.synthesisCard}>

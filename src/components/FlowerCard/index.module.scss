@@ -14,7 +14,8 @@
   }
 
   &.locked {
-    opacity: 0.7;
+    opacity: 0.85;
+    filter: grayscale(0.4);
   }
 }
 
@@ -24,6 +25,7 @@
   right: 16rpx;
   padding: 4rpx 12rpx;
   border-radius: $radius-xs;
+  z-index: 2;
 }
 
 .rarityText {
@@ -40,10 +42,32 @@
   align-items: center;
   justify-content: center;
   margin-bottom: $spacing-sm;
+  position: relative;
+  overflow: hidden;
 }
 
 .flowerIcon {
   font-size: 80rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.lockOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  border-radius: $radius-md;
+}
+
+.lockIcon {
+  font-size: 60rpx;
 }
 
 .flowerName {
@@ -69,10 +93,27 @@
   background: $color-primary;
   padding: 4rpx 12rpx;
   border-radius: $radius-round;
+  z-index: 2;
 }
 
 .countText {
   font-size: 20rpx;
   color: $color-text-white;
   font-weight: $font-weight-semibold;
+}
+
+.lockBadge {
+  position: absolute;
+  bottom: 16rpx;
+  right: 16rpx;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4rpx 12rpx;
+  border-radius: $radius-round;
+  z-index: 2;
+}
+
+.lockBadgeText {
+  font-size: 20rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
 }

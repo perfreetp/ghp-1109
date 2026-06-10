@@ -70,6 +70,20 @@
   color: $color-primary;
 }
 
+.harvestableValue {
+  color: $color-success;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
 .statLabel {
   font-size: $font-size-xs;
   color: $color-text-secondary;
@@ -141,6 +155,7 @@
   cursor: pointer;
   transition: all $transition-base;
   position: relative;
+  overflow: hidden;
 
   &.occupied {
     border-style: solid;
@@ -148,13 +163,43 @@
     background: rgba(255, 255, 255, 0.9);
   }
 
+  &.ready {
+    border-color: $color-success;
+    border-width: 4rpx;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(255, 255, 255, 0.95) 100%);
+    box-shadow: 0 0 16rpx rgba(76, 175, 80, 0.4);
+    animation: glow 2s ease-in-out infinite;
+  }
+
   &:active {
     transform: scale(0.95);
   }
 }
 
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 16rpx rgba(76, 175, 80, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 28rpx rgba(76, 175, 80, 0.6);
+  }
+}
+
 .plotFlower {
   font-size: 64rpx;
+
+  .ready & {
+    animation: bounce 1s ease-in-out infinite;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6rpx);
+  }
 }
 
 .plotStage {
@@ -163,6 +208,16 @@
   right: 8rpx;
   font-size: 20rpx;
   color: $color-text-tertiary;
+  font-weight: $font-weight-medium;
+  padding: 2rpx 8rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.plotStageReady {
+  color: $color-success;
+  font-weight: $font-weight-bold;
+  background: rgba(76, 175, 80, 0.15);
 }
 
 .plotEmptyIcon {
@@ -174,6 +229,62 @@
 .plotEmptyText {
   font-size: 20rpx;
   color: $color-text-tertiary;
+}
+
+.plotPotIcon {
+  position: absolute;
+  bottom: 6rpx;
+  left: 6rpx;
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.expandCard {
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-secondary-light 100%);
+  border-radius: $radius-xl;
+  padding: $spacing-xl;
+  margin-top: $spacing-lg;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: $shadow-card;
+}
+
+.expandInfo {
+  flex: 1;
+}
+
+.expandTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+}
+
+.expandDesc {
+  font-size: $font-size-sm;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 8rpx;
+}
+
+.expandBtn {
+  height: $button-height-md;
+  padding: 0 $spacing-xl;
+  background: $color-text-white;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  transition: all $transition-base;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.expandBtnText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
 }
 
 .synthesisCard {

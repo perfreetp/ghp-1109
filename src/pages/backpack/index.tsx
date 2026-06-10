@@ -4,12 +4,21 @@ import Taro, { useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import { useUserStore } from '@/store/useUserStore';
 import ItemCard from '@/components/ItemCard';
+import { Item, PlantSlot } from '@/types/game';
 import styles from './index.module.scss';
 
 type TabType = 'tool' | 'seed' | 'pot';
 
 const BackpackPage: React.FC = () => {
-  const { items, addItem, useItem, spendCoins } = useUserStore();
+  const {
+    items,
+    plantSlots,
+    addItem,
+    useItem,
+    spendCoins,
+    expandGardenSlot,
+    upgradeSlotPot
+  } = useUserStore();
   const [activeTab, setActiveTab] = useState<TabType>('tool');
 
   useEffect(() => {
@@ -81,6 +90,117 @@ const BackpackPage: React.FC = () => {
     });
   };
 
+  const handleExpandGarden = () => {
+    const result = expandGardenSlot('pot_clay');
+    if (result.success) {
+      Taro.showToast({ title: result.message, icon: 'success' });
+    } else {
+      Taro.showToast({ title: result.message, icon: 'none' });
+    }
+  };
+
+  const handleUpgradeEmptySlot = () => {
+    const targetSlot = plantSlots.find((s) => (s.potLevel || 0) === 0 && !s.occupied);
+    if (!targetSlot) {
+      Taro.showToast({ title: '没有可升级的空格', icon: 'none' });
+      return;
+    }
+    const result = upgradeSlotPot(targetSlot.id, 'pot_clay');
+    if (result.success) {
+      Taro.showToast({ title: result.message, icon: 'success' });
+    } else {
+      let toastMsg = result.message;
+      if (result.message.includes('花盆数量不足')) {
+        toastMsg = '陶土花盆不足';
+      }
+      Taro.showToast({ title: toastMsg, icon: 'none' });
+    }
+  };
+
+  const handleUpgradeClayToPorcelain = () => {
+    const hasClaySlot = plantSlots.some((s) => (s.potLevel || 0) === 1 && !s.occupied);
+    if (!hasClaySlot) {
+      Taro.showToast({ title: '需要先有陶土花盆再升级陶瓷', icon: 'none' });
+      return;
+    }
+    const targetSlot = plantSlots.find((s) => (s.potLevel || 0) === 1 && !s.occupied);
+    if (!targetSlot) {
+      Taro.showToast({ title: '没有可升级的陶土花盆格子', icon: 'none' });
+      return;
+    }
+    const result = upgradeSlotPot(targetSlot.id, 'pot_porcelain');
+    if (result.success) {
+      Taro.showToast({ title: result.message, icon: 'success' });
+    } else {
+      Taro.showToast({ title: result.message, icon: 'none' });
+    }
+  };
+
+  const renderPotCard = (item: Item) => {
+    const isClay = item.id === 'pot_clay';
+    const isPorcelain = item.id === 'pot_porcelain';
+    const disabled = item.count <= 0;
+
+    return (
+      <View key={item.id} className={styles.potCard}>
+        <View className={styles.potCardHeader}>
+          <View className={styles.potIconWrap}>
+            <Text className={styles.potIcon}>{item.icon}</Text>
+          </View>
+          <View className={styles.potInfo}>
+            <Text className={styles.potName}>{item.name}</Text>
+            <Text className={styles.potDesc}>{item.description}</Text>
+            {item.rarity && (
+              <View className={classnames(styles.potRarity, styles[`rarity_${item.rarity}`])}>
+                <Text className={styles.potRarityText}>
+                  {item.rarity === 'common' ? '普通' : item.rarity === 'rare' ? '稀有' : '史诗'}
+                </Text>
+              </View>
+            )}
+          </View>
+          <View className={styles.potCountBadge}>
+            <Text className={styles.potCountText}>×{item.count}</Text>
+          </View>
+        </View>
+        <View className={styles.potActions}>
+          {isClay && (
+            <>
+              <View
+                className={classnames(styles.potActionBtn, styles.btnPrimary, disabled && styles.disabled)}
+                onClick={() => !disabled && handleExpandGarden()}
+              >
+                <Text className={styles.potActionBtnText}>扩建花园</Text>
+              </View>
+              <View
+                className={classnames(styles.potActionBtn, styles.btnSecondary, disabled && styles.disabled)}
+                onClick={() => !disabled && handleUpgradeEmptySlot()}
+              >
+                <Text className={styles.potActionBtnText}>升级空格</Text>
+              </View>
+            </>
+          )}
+          {isPorcelain && (
+            <View
+              className={classnames(styles.potActionBtn, styles.btnPrimary, styles.btnFull, disabled && styles.disabled)}
+              onClick={() => !disabled && handleUpgradeClayToPorcelain()}
+            >
+              <Text className={styles.potActionBtnText}>升级陶土格</Text>
+            </View>
+          )}
+        </View>
+        {item.price && (
+          <View className={styles.potBuyRow} onClick={() => handleBuy(item.id)}>
+            <Text className={styles.potBuyPrice}>💰 {item.price}</Text>
+            <Text className={styles.potBuyLink}>购买</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const potItems = filteredItems.filter((i) => i.type === 'pot');
+  const nonPotItems = filteredItems.filter((i) => i.type !== 'pot');
+
   return (
     <ScrollView scrollY className='pageContainer'>
       <View className={styles.tabBar}>
@@ -126,21 +246,32 @@ const BackpackPage: React.FC = () => {
         {activeTab === 'tool' ? '道具列表' : activeTab === 'seed' ? '花种列表' : '花盆列表'}
       </Text>
 
-      {filteredItems.length > 0 ? (
-        filteredItems.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            showUseBtn={activeTab === 'tool'}
-            onUse={() => handleUseItem(item.id)}
-            onClick={item.price ? () => handleBuy(item.id) : undefined}
-          />
-        ))
+      {activeTab === 'pot' ? (
+        potItems.length > 0 ? (
+          potItems.map((item) => renderPotCard(item))
+        ) : (
+          <View className={styles.emptyState}>
+            <Text className={styles.emptyIcon}>📦</Text>
+            <Text className={styles.emptyText}>暂无物品</Text>
+          </View>
+        )
       ) : (
-        <View className={styles.emptyState}>
-          <Text className={styles.emptyIcon}>📦</Text>
-          <Text className={styles.emptyText}>暂无物品</Text>
-        </View>
+        nonPotItems.length > 0 ? (
+          nonPotItems.map((item) => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              showUseBtn={activeTab === 'tool'}
+              onUse={() => handleUseItem(item.id)}
+              onClick={item.price ? () => handleBuy(item.id) : undefined}
+            />
+          ))
+        ) : (
+          <View className={styles.emptyState}>
+            <Text className={styles.emptyIcon}>📦</Text>
+            <Text className={styles.emptyText}>暂无物品</Text>
+          </View>
+        )
       )}
     </ScrollView>
   );

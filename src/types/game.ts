@@ -7,6 +7,18 @@ export interface Tile {
   isSelected: boolean;
 }
 
+export type LevelGoalType = 'score' | 'collectType' | 'comboCount' | 'useTool' | 'movesLimit';
+
+export interface LevelGoal {
+  type: LevelGoalType;
+  target: number;
+  current?: number;
+  flowerType?: number;
+  toolId?: string;
+  label: string;
+  icon?: string;
+}
+
 export interface Level {
   id: number;
   name: string;
@@ -18,14 +30,18 @@ export interface Level {
   stars1Score: number;
   stars2Score: number;
   stars3Score: number;
+  goals: LevelGoal[];
   rewards: {
     coins: number;
     seeds?: number;
+    seedType?: string;
+    seedFlowerId?: number;
   };
   unlocked: boolean;
   completed: boolean;
   bestScore: number;
   stars: number;
+  tutorialTool?: string;
 }
 
 export interface Flower {
@@ -38,7 +54,11 @@ export interface Flower {
   emoji: string;
   unlocked: boolean;
   collectedCount: number;
+  growthSeconds: number;
+  harvestReward: number;
 }
+
+export type ItemSource = 'levelReward' | 'taskReward' | 'gardenHarvest' | 'shop';
 
 export interface Item {
   id: string;
@@ -48,6 +68,12 @@ export interface Item {
   icon: string;
   count: number;
   price?: number;
+  rarity?: 'common' | 'rare' | 'epic';
+  gardenEffect?: {
+    growthSpeedMultiplier?: number;
+    harvestBonus?: number;
+    expandSlots?: number;
+  };
 }
 
 export interface Task {
@@ -60,6 +86,7 @@ export interface Task {
   reward: {
     coins?: number;
     seeds?: number;
+    seedType?: string;
     items?: { id: string; count: number }[];
   };
   completed: boolean;
@@ -78,12 +105,40 @@ export interface LeaderboardUser {
   isSelf: boolean;
 }
 
+export type PotLevel = 0 | 1 | 2;
+
 export interface PlantSlot {
   id: number;
   occupied: boolean;
   flowerId?: number;
   plantedAt?: number;
   growthStage?: 0 | 1 | 2 | 3;
+  potLevel?: PotLevel;
+  potId?: string;
+}
+
+export interface LevelPlayRecord {
+  levelId: number;
+  playedAt: number;
+  score: number;
+  stars: number;
+  collectedFlowers: Record<number, number>;
+  maxCombo: number;
+  usedTools: Record<string, number>;
+}
+
+export interface FlowerSourceRecord {
+  levelReward: number;
+  taskReward: number;
+  gardenHarvest: number;
+  shop: number;
+}
+
+export interface ItemSourceRecord {
+  levelReward: number;
+  taskReward: number;
+  gardenHarvest: number;
+  shop: number;
 }
 
 export interface UserProfile {
@@ -118,4 +173,6 @@ export interface GameState {
   gameOver: boolean;
   gameResult: 'win' | 'lose' | null;
   activeItem: string | null;
+  collectTypeCount: Record<number, number>;
+  toolsUsedCount: Record<string, number>;
 }

@@ -39,7 +39,7 @@ const LevelsPage: React.FC = () => {
   const handleLevelClick = (levelId: number) => {
     const level = mergedLevels.find((l) => l.id === levelId);
     if (level?.unlocked) {
-      Taro.navigateTo({ url: `/pages/game/index?levelId=${levelId}` });
+      Taro.navigateTo({ url: `/pages/level-detail/index?levelId=${levelId}` });
     } else {
       Taro.showToast({ title: '关卡未解锁', icon: 'none' });
     }
