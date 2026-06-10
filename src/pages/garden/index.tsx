@@ -226,12 +226,30 @@ const GardenPage: React.FC = () => {
       const isReady = stage === 3;
       const potLevel = slot.potLevel || 0;
       const harvestMultiplier = POT_HARVEST_MAP[potLevel] || 1;
-      const rewardN = (flower?.harvestReward || 1) * harvestMultiplier;
+      const baseReward = (flower?.harvestReward || 1) * harvestMultiplier;
+      const qualityAdd = (slot.qualityBonus || 0) > 0 ? 1 : 0;
+      const rewardN = baseReward + qualityAdd;
+      const consDays = slot.consecutiveCareDays || 0;
+      const consBonusText = consDays >= 3
+        ? `连续照料 ${consDays}天 🔥加速+50% �品质+1`
+        : `连续照料 ${consDays}天（3天解锁加成`;
+      const qualityText = qualityAdd > 0 ? '品质加成：✅已激活' : '';
 
       if (isReady) {
+        const detailLines = [
+          `生长阶段：${stage + 1}/4 ✅已成熟可收获`,
+          `花盆等级：${potLevel === 0 ? '普通' : potLevel === 1 ? '优良' : '珍稀'}（×${harvestMultiplier}）`,
+          consBonusText,
+          qualityAdd > 0 ? qualityText : null,
+          '',
+          `花语：${flower?.meaning || ''}`,
+          '',
+          `预计获得：${rewardN} 个花种`,
+          qualityAdd > 0 ? `  · 基础 ${baseReward} + 品质 +${qualityAdd}` : null,
+        ].filter((x): x is string => !!x).join('\n');
         Taro.showModal({
           title: `${flower?.emoji || '🌸'} ${flower?.name || '花朵'}`,
-          content: `生长阶段：${stage + 1}/4 ✅已成熟可收获\n\n花语：${flower?.meaning || ''}\n\n预计获得：${rewardN} 个花种`,
+          content: detailLines,
           confirmText: '🌾 收获',
           showCancel: true,
           cancelText: '关闭',
@@ -263,9 +281,21 @@ const GardenPage: React.FC = () => {
             } else if (res.tapIndex === 1) {
               handleCareSingle(slotId, 'fertilizer');
             } else if (res.tapIndex === 2) {
+              const detailLines = [
+                `生长阶段：${stage + 1}/4`,
+                `花盆等级：${potLevel === 0 ? '普通' : potLevel === 1 ? '优良' : '珍稀'}（×${harvestMultiplier}）`,
+                `今天照料次数：${slot.todayCareCount || 0}`,
+                consBonusText,
+                qualityAdd > 0 ? qualityText : null,
+                '',
+                `花语：${flower?.meaning || ''}`,
+                '',
+                `预计成熟后可获得 ${rewardN} 个花种`,
+                qualityAdd > 0 ? `  · 基础 ${baseReward} + 品质 +${qualityAdd}` : null,
+              ].filter((x): x is string => !!x).join('\n');
               Taro.showModal({
                 title: `${flower?.emoji || '🌸'} ${flower?.name || '花朵'}`,
-                content: `生长阶段：${stage + 1}/4\n\n花语：${flower?.meaning || ''}\n\n预计成熟后可获得 ${rewardN} 个花种`,
+                content: detailLines,
                 showCancel: false,
                 confirmText: '知道了'
               });

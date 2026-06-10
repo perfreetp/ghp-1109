@@ -424,3 +424,82 @@
 .bottomSpacer {
   height: env(safe-area-inset-bottom);
 }
+
+.recordMoves {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+
+  &.movesOk { color: $color-success; }
+  &.movesFail { color: $color-error; }
+}
+
+.recordGoals {
+  display: flex;
+  gap: 8rpx;
+  flex-wrap: wrap;
+  margin-top: $spacing-xs;
+}
+
+.recordGoalChip {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 12rpx;
+  background: rgba(0, 0, 0, 0.06);
+  opacity: 0.75;
+
+  &.recordGoalChipDone {
+    opacity: 1;
+    background: rgba(0, 184, 148, 0.1);
+  }
+}
+
+.recordGoalTag {
+  flex-shrink: 0;
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recordGoalTagText {
+  font-size: 16rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-bold;
+}
+
+.recordGoalIcon {
+  font-size: 20rpx;
+}
+
+.recordGoalResult {
+  font-size: 18rpx;
+  font-weight: $font-weight-bold;
+
+  &.ok { color: $color-success; }
+  &.fail { color: $color-error; }
+}
+
+.goalTypeTag {
+  flex-shrink: 0;
+  padding: 4rpx 14rpx;
+  border-radius: 16rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goalTypeTagText {
+  font-size: 18rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.goalReward {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  font-weight: $font-weight-semibold;
+}

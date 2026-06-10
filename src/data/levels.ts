@@ -10,18 +10,23 @@ const flowerTileNames: Record<number, { flowerId: number; name: string; emoji: s
 };
 
 function buildGoalsForLevel(id: number, baseTarget: number, tileTypes: number, moves: number): Level['goals'] {
+  const baseCoins = 50 + id * 20;
   const goals: Level['goals'] = [
     {
       type: 'score',
       target: baseTarget,
       label: '达到目标分',
-      icon: '🎯'
+      icon: '🎯',
+      required: true,
+      rewardCoins: Math.round(baseCoins * 0.4)
     },
     {
       type: 'movesLimit',
       target: moves,
       label: '步数内完成',
-      icon: '👣'
+      icon: '👣',
+      required: true,
+      rewardCoins: Math.round(baseCoins * 0.2)
     }
   ];
 
@@ -34,7 +39,9 @@ function buildGoalsForLevel(id: number, baseTarget: number, tileTypes: number, m
       target: count,
       flowerType,
       label: `收集${info.name}${count}个`,
-      icon: info.emoji
+      icon: info.emoji,
+      required: true,
+      rewardCoins: Math.round(baseCoins * 0.3)
     });
   }
 
@@ -44,7 +51,9 @@ function buildGoalsForLevel(id: number, baseTarget: number, tileTypes: number, m
       type: 'comboCount',
       target: comboTarget,
       label: `达成${comboTarget}连击`,
-      icon: '⚡'
+      icon: '⚡',
+      required: false,
+      rewardCoins: Math.round(baseCoins * 0.25)
     });
   }
 
@@ -54,7 +63,9 @@ function buildGoalsForLevel(id: number, baseTarget: number, tileTypes: number, m
       target: 1,
       toolId: 'shovel',
       label: '使用1次铲子',
-      icon: '⛏️'
+      icon: '⛏️',
+      required: true,
+      rewardCoins: Math.round(baseCoins * 0.35)
     });
   }
   if (id === 7) {
@@ -63,7 +74,9 @@ function buildGoalsForLevel(id: number, baseTarget: number, tileTypes: number, m
       target: 1,
       toolId: 'watercan',
       label: '使用1次浇水壶',
-      icon: '🚿'
+      icon: '🚿',
+      required: true,
+      rewardCoins: Math.round(baseCoins * 0.35)
     });
   }
   if (id === 13) {
@@ -72,7 +85,9 @@ function buildGoalsForLevel(id: number, baseTarget: number, tileTypes: number, m
       target: 1,
       toolId: 'rainbow',
       label: '使用1次彩虹花',
-      icon: '🌈'
+      icon: '🌈',
+      required: true,
+      rewardCoins: Math.round(baseCoins * 0.35)
     });
   }
 

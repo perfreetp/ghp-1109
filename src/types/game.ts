@@ -17,6 +17,34 @@ export interface LevelGoal {
   toolId?: string;
   label: string;
   icon?: string;
+  required?: boolean;
+  rewardCoins?: number;
+}
+
+export interface OrderRequirement {
+  flowerId: number;
+  count: number;
+}
+
+export interface OrderReward {
+  coins?: number;
+  items?: { id: string; count: number }[];
+  exp?: number;
+}
+
+export type OrderStatus = 'pending' | 'completed' | 'expired';
+
+export interface FlowerOrder {
+  id: number;
+  title: string;
+  requester: string;
+  avatar?: string;
+  requirements: OrderRequirement[];
+  reward: OrderReward;
+  status: OrderStatus;
+  createdAt: number;
+  expiresAt: number;
+  description?: string;
 }
 
 export interface Level {
@@ -115,6 +143,11 @@ export interface PlantSlot {
   growthStage?: 0 | 1 | 2 | 3;
   potLevel?: PotLevel;
   potId?: string;
+  lastCareAt?: number;
+  careCount?: number;
+  todayCareCount?: number;
+  consecutiveCareDays?: number;
+  qualityBonus?: number;
 }
 
 export interface LevelPlayRecord {
@@ -125,6 +158,9 @@ export interface LevelPlayRecord {
   collectedFlowers: Record<number, number>;
   maxCombo: number;
   usedTools: Record<string, number>;
+  movesUsed: number;
+  totalMoves: number;
+  goalsCompleted: Record<string, boolean>;
 }
 
 export interface FlowerSourceRecord {

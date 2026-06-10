@@ -10,7 +10,8 @@ export default defineAppConfig({
     'pages/tasks/index',
     'pages/leaderboard/index',
     'pages/settings/index',
-    'pages/codex/index'
+    'pages/codex/index',
+    'pages/orders/index'
   ],
   window: {
     backgroundTextStyle: 'light',

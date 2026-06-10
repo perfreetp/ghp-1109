@@ -149,6 +149,9 @@ const LevelDetailPage: React.FC = () => {
           <Text className={styles.cardTitle}>📜 通关记录（最近{records.length}局）</Text>
           {records.map((rec, idx) => {
             const collectedEntries = Object.entries(rec.collectedFlowers || {}).filter(([, v]) => v > 0);
+            const movesUsed = rec.movesUsed || 0;
+            const movesTotal = rec.totalMoves || level.moves;
+            const movesFinished = movesUsed <= movesTotal;
             return (
               <View key={idx} className={styles.recordItem}>
                 <View className={styles.recordLeft}>
@@ -157,7 +160,30 @@ const LevelDetailPage: React.FC = () => {
                     <Text className={styles.recordScore}>{rec.score} 分</Text>
                     {renderStars(rec.stars)}
                     <Text className={styles.recordCombo}>⚡ {rec.maxCombo || 0}</Text>
+                    <Text className={classnames(styles.recordMoves, movesFinished ? styles.movesOk : styles.movesFail)}>
+                      👣 {movesUsed}/{movesTotal}
+                    </Text>
                   </View>
+                  {rec.goalsCompleted && Object.keys(rec.goalsCompleted).length > 0 && (
+                    <View className={styles.recordGoals}>
+                      {level.goals.map((goal, gi) => {
+                        const gk = `${goal.type}_${goal.flowerType || goal.toolId || 'default'}`;
+                        const done = rec.goalsCompleted?.[gk];
+                        const tagBg = goal.required !== false ? '#E74C3C' : '#27AE60';
+                        return (
+                          <View key={gi} className={classnames(styles.recordGoalChip, done && styles.recordGoalChipDone)}>
+                            <View className={styles.recordGoalTag} style={{ backgroundColor: tagBg }}>
+                              <Text className={styles.recordGoalTagText}>{goal.required !== false ? '必' : '加'}</Text>
+                            </View>
+                            <Text className={styles.recordGoalIcon}>{goal.icon || '📌'}</Text>
+                            <Text className={classnames(styles.recordGoalResult, done ? styles.ok : styles.fail)}>
+                              {done ? '✓' : '✗'}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
                 {collectedEntries.length > 0 && (
                   <View className={styles.recordCollected}>
@@ -202,15 +228,25 @@ const LevelDetailPage: React.FC = () => {
       </View>
 
       <View className={styles.card}>
-        <Text className={styles.cardTitle}>🎯 关卡目标</Text>
+        <Text className={styles.cardTitle}>🎯 关卡目标（红色必达·绿色加分）</Text>
         <View className={styles.goalList}>
-          {level.goals.map((goal, idx) => (
-            <View key={idx} className={styles.goalItem}>
-              <Text className={styles.goalIcon}>{goal.icon || '📌'}</Text>
-              <Text className={styles.goalLabel}>{goal.label}</Text>
-              <Text className={styles.goalTarget}>× {goal.target}</Text>
-            </View>
-          ))}
+          {level.goals.map((goal, idx) => {
+            const isRequired = goal.required !== false;
+            const tagBg = isRequired ? '#E74C3C' : '#27AE60';
+            return (
+              <View key={idx} className={styles.goalItem}>
+                <View className={styles.goalTypeTag} style={{ backgroundColor: tagBg }}>
+                  <Text className={styles.goalTypeTagText}>{isRequired ? '必达' : '加分'}</Text>
+                </View>
+                <Text className={styles.goalIcon}>{goal.icon || '📌'}</Text>
+                <Text className={styles.goalLabel}>{goal.label}</Text>
+                <Text className={styles.goalTarget}>× {goal.target}</Text>
+                {goal.rewardCoins && (
+                  <Text className={styles.goalReward}>+{goal.rewardCoins}💰</Text>
+                )}
+              </View>
+            );
+          })}
         </View>
       </View>
 

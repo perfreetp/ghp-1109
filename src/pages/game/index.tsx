@@ -54,7 +54,7 @@ const GamePage: React.FC = () => {
   const [gameResult, setGameResult] = useState<'win' | 'lose' | null>(null);
   const [earnedStars, setEarnedStars] = useState(0);
   const [resultSaved, setResultSaved] = useState(false);
-  const [lastRewards, setLastRewards] = useState<{ coins: number; seeds?: number; firstTime: boolean; bonusCoins?: number; goalBonus?: number; stepsBonus?: number } | null>(null);
+  const [lastRewards, setLastRewards] = useState<{ coins: number; seeds?: number; firstTime: boolean; bonusCoins?: number; goalBonus?: number; stepsBonus?: number; goalCoins?: number } | null>(null);
   const [collectTypeCount, setCollectTypeCount] = useState<Record<number, number>>({});
   const [toolsUsedCount, setToolsUsedCount] = useState<Record<string, number>>({});
   const [bonusCoinsState, setBonusCoinsState] = useState(0);
@@ -126,6 +126,21 @@ const GamePage: React.FC = () => {
     return getGoalCurrentValue(goal) >= goal.target;
   };
 
+  const buildGoalsCompletedMap = (): Record<string, boolean> => {
+    const lvl = currentLevel();
+    const map: Record<string, boolean> = {};
+    lvl.goals.forEach((goal) => {
+      const key = `${goal.type}_${goal.flowerType || goal.toolId || 'default'}`;
+      map[key] = isGoalReached(goal);
+    });
+    return map;
+  };
+
+  const isAllRequiredGoalsReached = (): boolean => {
+    const lvl = currentLevel();
+    return lvl.goals.every((goal) => goal.required === false || isGoalReached(goal));
+  };
+
   const processMatches = async (currentBoard: Tile[][], scoreSetter: (n: number) => void): Promise<Tile[][]> => {
     let workingBoard = currentBoard;
     let localCombo = 0;
@@ -177,7 +192,8 @@ const GamePage: React.FC = () => {
 
   const tryEndGameAfterMove = (nextScore: number, remainingMoves: number) => {
     const lvl = currentLevel();
-    if (nextScore >= lvl.targetScore) {
+    const allRequiredReached = isAllRequiredGoalsReached();
+    if (nextScore >= lvl.targetScore && allRequiredReached) {
       const stars = calculateStars(nextScore, lvl.stars1Score, lvl.stars2Score, lvl.stars3Score);
       setEarnedStars(stars);
       setGameOver(true);
@@ -185,8 +201,14 @@ const GamePage: React.FC = () => {
       return;
     }
     if (remainingMoves <= 0) {
+      if (nextScore >= lvl.targetScore && allRequiredReached) {
+        const stars = calculateStars(nextScore, lvl.stars1Score, lvl.stars2Score, lvl.stars3Score);
+        setEarnedStars(stars);
+        setGameResult('win');
+      } else {
+        setGameResult('lose');
+      }
       setGameOver(true);
-      setGameResult('lose');
     }
   };
 
@@ -351,30 +373,48 @@ const GamePage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!gameOver || gameResult !== 'win' || resultSaved) return;
+    if (!gameOver || resultSaved) return;
     const lvl = currentLevel();
+    const allRequiredReached = isAllRequiredGoalsReached();
+    const goalsCompleted = buildGoalsCompletedMap();
+    const movesUsed = lvl.moves - movesLeft;
     let goalBonus = 0;
-    const extraGoalTypes = ['collectType', 'comboCount', 'useTool'];
-    lvl.goals.forEach((goal) => {
-      if (extraGoalTypes.includes(goal.type) && isGoalReached(goal)) {
-        goalBonus += Math.round(lvl.rewards.coins * 0.1);
-      }
-    });
-    const stepsBonus = movesLeft >= 5 ? movesLeft * 10 : 0;
+    if (allRequiredReached) {
+      lvl.goals.forEach((goal) => {
+        if (goalsCompleted[`${goal.type}_${goal.flowerType || goal.toolId || 'default'}`] && goal.rewardCoins) {
+          goalBonus += goal.rewardCoins;
+        }
+      });
+    }
+    const stepsBonus = (allRequiredReached && movesLeft >= 5) ? movesLeft * 10 : 0;
     const bonusCoins = goalBonus + stepsBonus;
     const { rewarded, rewards } = saveLevelResult(lvl.id, score, earnedStars, {
       collectedFlowerTileTypes: collectTypeCount,
       maxCombo,
       usedTools: toolsUsedCount,
-      bonusCoins
+      bonusCoins,
+      movesUsed,
+      totalMoves: lvl.moves,
+      goalsCompleted,
+      allRequiredGoalsReached: allRequiredReached
     });
     setBonusCoinsState(bonusCoins);
     setGoalBonusState(goalBonus);
     setStepsBonusState(stepsBonus);
-    setLastRewards({ coins: rewards.coins, seeds: rewards.seeds, firstTime: rewarded, bonusCoins, goalBonus, stepsBonus });
+    setLastRewards({
+      coins: rewards.coins,
+      seeds: rewards.seeds,
+      firstTime: rewarded,
+      bonusCoins,
+      goalCoins: rewards.goalCoins,
+      goalBonus,
+      stepsBonus
+    });
     setResultSaved(true);
-    Taro.vibrateShort && useUserStore.getState().profile.settings.vibrationEnabled && Taro.vibrateShort({ type: 'medium' }).catch(() => {});
-  }, [gameOver, gameResult, earnedStars, resultSaved, score, saveLevelResult, collectTypeCount, maxCombo, toolsUsedCount, movesLeft]);
+    if (gameResult === 'win') {
+      Taro.vibrateShort && useUserStore.getState().profile.settings.vibrationEnabled && Taro.vibrateShort({ type: 'medium' }).catch(() => {});
+    }
+  }, [gameOver, resultSaved, earnedStars, score, saveLevelResult, collectTypeCount, maxCombo, toolsUsedCount, movesLeft, gameResult]);
 
   const handleToolSelect = (toolId: string) => {
     const tool = items.find((i) => i.id === toolId);
@@ -418,6 +458,8 @@ const GamePage: React.FC = () => {
     const reached = isGoalReached(goal);
     let displayText = '';
     let displayIcon = goal.icon || '📋';
+    const tagColor = goal.required !== false ? '#E74C3C' : '#27AE60';
+    const tagText = goal.required !== false ? '必达' : '加分';
 
     switch (goal.type) {
       case 'score':
@@ -448,6 +490,9 @@ const GamePage: React.FC = () => {
         key={index}
         className={classnames(styles.goalItem, reached && styles.goalReached)}
       >
+        <View className={styles.goalTag} style={{ backgroundColor: tagColor }}>
+          <Text className={styles.goalTagText}>{tagText}</Text>
+        </View>
         <Text className={styles.goalText}>{displayText}</Text>
         {reached && <Text className={styles.goalCheck}>✅</Text>}
       </View>
@@ -539,40 +584,58 @@ const GamePage: React.FC = () => {
               {gameResult === 'win' ? '通关成功！' : '挑战失败'}
             </Text>
             <Text className={styles.resultScore}>最终分数：{score.toLocaleString()}</Text>
+            <Text className={styles.resultMoves}>消耗步数：{lvl.moves - movesLeft} / {lvl.moves} 步</Text>
 
-            {gameResult === 'win' && (
-              <>
-                <View className={styles.resultStars}>
-                  {[1, 2, 3].map((s) => (
-                    <Text key={s} className={classnames(styles.starIcon, s <= earnedStars && styles.active)}>⭐</Text>
+            {gameResult === 'lose' && (
+              <View className={styles.failTipCard}>
+                <Text className={styles.failTipTitle}>⚠️ 未达成必达目标</Text>
+                <View className={styles.failTipList}>
+                  {lvl.goals.filter((g) => g.required !== false && !isGoalReached(g)).map((g, i) => (
+                    <Text key={i} className={styles.failTipItem}>
+                      ❌ {g.label}（当前 {getGoalCurrentValue(g)}/{g.target}）
+                    </Text>
                   ))}
                 </View>
+              </View>
+            )}
 
-                <View className={styles.achievementCard}>
-                  <Text className={styles.achievementTitle}>🏆 本局成就</Text>
-                  <View className={styles.achievementList}>
-                    {lvl.goals.map((goal, idx) => {
-                      const reached = isGoalReached(goal);
-                      let icon = goal.icon || '📋';
-                      if (goal.type === 'collectType') {
-                        const fi = flowerTileNames[(goal.flowerType || 1) - 1];
-                        icon = fi?.emoji || icon;
-                      }
-                      if (goal.type === 'useTool') {
-                        const ti = items.find((i) => i.id === goal.toolId);
-                        icon = ti?.icon || icon;
-                      }
-                      return (
-                        <View key={idx} className={styles.achievementItem}>
-                          <Text className={styles.achievementIcon}>{reached ? '✅' : '❌'}</Text>
-                          <Text className={styles.achievementGoalIcon}>{icon}</Text>
+            {
+              <View className={styles.achievementCard}>
+                <Text className={styles.achievementTitle}>🏆 目标完成清单</Text>
+                <View className={styles.achievementList}>
+                  {lvl.goals.map((goal, idx) => {
+                    const reached = isGoalReached(goal);
+                    let icon = goal.icon || '📋';
+                    if (goal.type === 'collectType') {
+                      const fi = flowerTileNames[(goal.flowerType || 1) - 1];
+                      icon = fi?.emoji || icon;
+                    }
+                    if (goal.type === 'useTool') {
+                      const ti = items.find((i) => i.id === goal.toolId);
+                      icon = ti?.icon || icon;
+                    }
+                    const isRequired = goal.required !== false;
+                    const rewardCoin = reached && goal.rewardCoins ? goal.rewardCoins : 0;
+                    return (
+                      <View key={idx} className={styles.achievementItem}>
+                        <View className={classnames(styles.achievementTag, isRequired ? styles.requiredTag : styles.bonusTag)}>
+                          <Text className={styles.achievementTagText}>{isRequired ? '必达' : '加分'}</Text>
+                        </View>
+                        <Text className={styles.achievementIcon}>{reached ? '✅' : '❌'}</Text>
+                        <Text className={styles.achievementGoalIcon}>{icon}</Text>
+                        <View className={styles.achievementMeta}>
                           <Text className={classnames(styles.achievementLabel, reached && styles.reachedLabel)}>
-                            {goal.label}{reached ? ' 达成' : ' (未达成)'}
+                            {goal.label}
+                          </Text>
+                          <Text className={styles.achievementProgress}>
+                            {getGoalCurrentValue(goal)}/{goal.target}
+                            {rewardCoin > 0 && <Text className={styles.achievementReward}> +{rewardCoin}💰</Text>}
                           </Text>
                         </View>
-                      );
-                    })}
-                  </View>
+                      </View>
+                    );
+                  })}
+                </View>
 
                   {collectedFlowerEntries.length > 0 && (
                     <View className={styles.statsSection}>
@@ -613,6 +676,15 @@ const GamePage: React.FC = () => {
                       </View>
                     </View>
                   )}
+              </View>
+            }
+
+            {gameResult === 'win' && (
+              <>
+                <View className={styles.resultStars}>
+                  {[1, 2, 3].map((s) => (
+                    <Text key={s} className={classnames(styles.starIcon, s <= earnedStars && styles.active)}>⭐</Text>
+                  ))}
                 </View>
 
                 {lastRewards && lastRewards.firstTime && (
@@ -624,15 +696,23 @@ const GamePage: React.FC = () => {
                     </View>
                   </View>
                 )}
-                {(bonusCoinsState > 0 || (lastRewards && lastRewards.bonusCoins)) && (
+                {(goalBonusState > 0 || stepsBonusState > 0 || (lastRewards && (lastRewards.goalCoins || lastRewards.bonusCoins))) && (
                   <View className={styles.rewardBox}>
-                    <Text className={styles.rewardTitle}>✨ 额外奖励</Text>
-                    {goalBonusState > 0 && (
-                      <View className={styles.rewardRow}>
-                        <Text className={styles.rewardItem}>🎯 多目标达成</Text>
-                        <Text className={styles.rewardValue}>+{goalBonusState} 💰</Text>
-                      </View>
-                    )}
+                    <Text className={styles.rewardTitle}>✨ 分目标奖励</Text>
+                    {lvl.goals.map((goal, idx) => {
+                      const gk = `${goal.type}_${goal.flowerType || goal.toolId || 'default'}`;
+                      const done = isGoalReached(goal) && goal.rewardCoins;
+                      if (!done) return null;
+                      let icon = goal.icon || '📋';
+                      if (goal.type === 'collectType') icon = flowerTileNames[(goal.flowerType || 1) - 1]?.emoji || icon;
+                      if (goal.type === 'useTool') icon = items.find((i) => i.id === goal.toolId)?.icon || icon;
+                      return (
+                        <View key={idx} className={styles.rewardRow}>
+                          <Text className={styles.rewardItem}>{icon} {goal.label}</Text>
+                          <Text className={styles.rewardValue}>+{goal.rewardCoins} 💰</Text>
+                        </View>
+                      );
+                    })}
                     {stepsBonusState > 0 && (
                       <View className={styles.rewardRow}>
                         <Text className={styles.rewardItem}>👣 剩余步数{movesLeft}步</Text>
@@ -641,13 +721,13 @@ const GamePage: React.FC = () => {
                     )}
                     <View className={styles.rewardDivider} />
                     <View className={styles.rewardRow}>
-                      <Text className={classnames(styles.rewardItem, styles.bold)}>额外奖励合计</Text>
+                      <Text className={classnames(styles.rewardItem, styles.bold)}>分目标奖励合计</Text>
                       <Text className={classnames(styles.rewardValue, styles.bold)}>+{bonusCoinsState || lastRewards?.bonusCoins || 0} 💰</Text>
                     </View>
                   </View>
                 )}
                 {lastRewards && !lastRewards.firstTime && bonusCoinsState === 0 && (
-                  <Text className={styles.replayTip}>已获得过首次奖励，完成额外目标获得更多奖励！</Text>
+                  <Text className={styles.replayTip}>已获得过首次奖励，完成分目标获得更多奖励！</Text>
                 )}
               </>
             )}

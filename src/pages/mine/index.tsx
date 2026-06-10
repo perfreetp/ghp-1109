@@ -14,7 +14,8 @@ const MinePage: React.FC = () => {
       title: '游戏功能',
       items: [
         { icon: '📋', title: '每日任务', desc: '完成任务领取奖励', url: '/pages/tasks/index', badge: '3' },
-        { icon: '🏆', title: '排行榜', desc: '好友分数排行', url: '/pages/leaderboard/index' },
+        { icon: '�', title: '花束委托', desc: '交付花种换金币道具', url: '/pages/orders/index', badge: 'New' },
+        { icon: '�🏆', title: '排行榜', desc: '好友分数排行', url: '/pages/leaderboard/index' },
         { icon: '📖', title: '花语图鉴', desc: '已收集8/12种花', url: '/pages/codex/index', badge: 'New' },
       ]
     },

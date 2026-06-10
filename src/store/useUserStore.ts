@@ -9,11 +9,14 @@ import {
   Level,
   LevelPlayRecord,
   FlowerSourceRecord,
-  PotLevel
+  PotLevel,
+  FlowerOrder,
+  LevelGoal
 } from '@/types/game';
 import { tasks as initialTasksData } from '@/data/tasks';
 import { levels as initialLevelsData } from '@/data/levels';
 import { getFlowerById } from '@/data/flowers';
+import { generateDailyOrders } from '@/data/orders';
 
 export interface LevelProgress {
   levelId: number;
@@ -45,6 +48,8 @@ interface PersistState {
   levelProgress: Record<number, LevelProgress>;
   levelRecords: Record<number, LevelPlayRecord[]>;
   currentLevel: number;
+  orders: FlowerOrder[];
+  lastOrderRefreshDay: string;
 }
 
 interface UserStore extends PersistState {
@@ -70,15 +75,19 @@ interface UserStore extends PersistState {
     levelId: number,
     score: number,
     stars: number,
-    extras?: {
+    extras: {
       collectedFlowerTileTypes?: Record<number, number>;
       maxCombo?: number;
       usedTools?: Record<string, number>;
       bonusCoins?: number;
+      movesUsed?: number;
+      totalMoves?: number;
+      goalsCompleted?: Record<string, boolean>;
+      allRequiredGoalsReached?: boolean;
     }
   ) => {
     rewarded: boolean;
-    rewards: { coins: number; seeds?: number; seedType?: string; bonusCoins?: number };
+    rewards: { coins: number; seeds?: number; seedType?: string; bonusCoins?: number; goalCoins?: number };
   };
   getLevelPlayRecords: (levelId: number) => LevelPlayRecord[];
   claimTask: (taskId: number) => { success: boolean; message: string };
@@ -88,10 +97,17 @@ interface UserStore extends PersistState {
   getFlowerCollectCount: (flowerId: number) => number;
   getFlowerSourceRecord: (flowerId: number) => FlowerSourceRecord;
   tileTypeToFlowerId: (tileType: number) => number;
+  refreshDailyOrders: () => FlowerOrder[];
+  getOrders: () => FlowerOrder[];
+  deliverOrder: (orderId: number) => {
+    success: boolean;
+    message: string;
+    rewards?: { coins?: number; items?: { id: string; count: number }[] };
+  };
   resetAll: () => void;
 }
 
-const STORAGE_KEY = 'huaxiaoxiao_user_store_v3';
+const STORAGE_KEY = 'huaxiaoxiao_user_store_v4';
 
 const CARE_CONFIG: Record<CareType, { itemId: string; savedSeconds: number }> = {
   water: { itemId: 'care_water', savedSeconds: 20 },
@@ -248,6 +264,8 @@ export const useUserStore = create<UserStore>()(
       levelProgress: initialLevelProgress,
       levelRecords: {},
       currentLevel: initialProfile.currentLevel,
+      orders: [],
+      lastOrderRefreshDay: '',
 
       tileTypeToFlowerId: (tileType: number) => {
         return TILE_TYPE_TO_FLOWER_ID[tileType] || (tileType + 1);
@@ -369,7 +387,8 @@ export const useUserStore = create<UserStore>()(
         const potLevel = slot.potLevel || 0;
         const flowerData = getFlowerById(flowerId);
         const isNew = !state.collectedFlowerIds.includes(flowerId);
-        const reward = (flowerData?.harvestReward || 1) * (POT_HARVEST_MAP[potLevel] || 1);
+        const qualityAdd = (slot.qualityBonus || 0) > 0 ? 1 : 0;
+        const reward = (flowerData?.harvestReward || 1) * (POT_HARVEST_MAP[potLevel] || 1) + qualityAdd;
         const flowerSeedMap: Record<number, string> = {
           1: 'seed_rose',
           2: 'seed_sunflower',
@@ -438,7 +457,8 @@ export const useUserStore = create<UserStore>()(
           const flowerId = slot.flowerId!;
           const potLevel = slot.potLevel || 0;
           const flowerData = getFlowerById(flowerId);
-          const reward = (flowerData?.harvestReward || 1) * (POT_HARVEST_MAP[potLevel] || 1);
+          const qualityAdd = (slot.qualityBonus || 0) > 0 ? 1 : 0;
+          const reward = (flowerData?.harvestReward || 1) * (POT_HARVEST_MAP[potLevel] || 1) + qualityAdd;
           const flowerSeedMap: Record<number, string> = {
             1: 'seed_rose', 2: 'seed_sunflower', 3: 'seed_tulip', 4: 'seed_cherry'
           };
@@ -541,15 +561,57 @@ export const useUserStore = create<UserStore>()(
           return { success: false, message: '该地块没有正在生长的花朵' };
         }
 
+        const now = Date.now();
+        const getDay = (ts: number) => {
+          const d = new Date(ts);
+          return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        };
+        const today = getDay(now);
+        const lastCareDay = slot.lastCareAt ? getDay(slot.lastCareAt) : '';
+        const yesterday = (() => { const y = new Date(now); y.setDate(y.getDate() - 1); return getDay(y.getTime()); })();
+
+        let nextConsecutive = slot.consecutiveCareDays || 0;
+        if (lastCareDay === today) {
+          // 今天已照料过，连续天数不变
+        } else if (lastCareDay === yesterday || lastCareDay === '') {
+          nextConsecutive = (slot.consecutiveCareDays || 0) + 1;
+        } else {
+          nextConsecutive = 1; // 断了连续
+        }
+
+        const nextTodayCareCount = lastCareDay === today ? (slot.todayCareCount || 0) + 1 : 1;
+        const nextCareCount = (slot.careCount || 0) + 1;
         const savedMs = config.savedSeconds * 1000;
+        const extraSavedMs = nextConsecutive >= 3 ? Math.floor(config.savedSeconds * 0.5 * 1000) : 0;
+
         set((s) => ({
           items: s.items.map((i) => i.id === config.itemId ? { ...i, count: i.count - 1 } : i),
           plantSlots: s.plantSlots.map((s2) =>
-            s2.id === slotId ? { ...s2, plantedAt: Math.max(0, (s2.plantedAt || 0) - savedMs) } : s2
+            s2.id === slotId
+              ? {
+                  ...s2,
+                  plantedAt: Math.max(0, (s2.plantedAt || 0) - savedMs - extraSavedMs),
+                  lastCareAt: now,
+                  careCount: nextCareCount,
+                  todayCareCount: nextTodayCareCount,
+                  consecutiveCareDays: nextConsecutive,
+                  qualityBonus: nextConsecutive >= 3 ? 1 : (s2.qualityBonus || 0)
+                }
+              : s2
           )
         }));
         const nameMap: Record<CareType, string> = { water: '浇水', fertilizer: '施肥' };
-        return { success: true, message: `${nameMap[careType]}成功！成长加速 ${config.savedSeconds} 秒`, savedSeconds: config.savedSeconds };
+        let extraTip = '';
+        if (nextConsecutive >= 3) {
+          extraTip = `，连续照料${nextConsecutive}天额外加速${Math.floor(config.savedSeconds * 0.5)}s+收获加成`;
+        } else if (nextConsecutive >= 1) {
+          extraTip = `，已连续照料${nextConsecutive}天（3天起解锁加成）`;
+        }
+        return {
+          success: true,
+          message: `${nameMap[careType]}成功！成长加速 ${config.savedSeconds} 秒${extraTip}`,
+          savedSeconds: config.savedSeconds + Math.floor(extraSavedMs / 1000)
+        };
       },
 
       careAllPlants: (careType) => {
@@ -569,21 +631,46 @@ export const useUserStore = create<UserStore>()(
         }
         if (!item) return { success: false, message: '道具不足！' };
 
+        const now = Date.now();
+        const getDay = (ts: number) => {
+          const d = new Date(ts);
+          return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        };
+        const today = getDay(now);
+        const yesterday = (() => { const y = new Date(now); y.setDate(y.getDate() - 1); return getDay(y.getTime()); })();
         const savedMs = config.savedSeconds * 1000;
         const applySlots = growingSlots.slice(0, affectedCount);
         const applyIds = new Set(applySlots.map((s) => s.id));
         set((s) => ({
           items: s.items.map((i) => i.id === config.itemId ? { ...i, count: i.count - affectedCount } : i),
-          plantSlots: s.plantSlots.map((s2) =>
-            applyIds.has(s2.id)
-              ? { ...s2, plantedAt: Math.max(0, (s2.plantedAt || 0) - savedMs) }
-              : s2
-          )
+          plantSlots: s.plantSlots.map((s2) => {
+            if (!applyIds.has(s2.id)) return s2;
+            const lastCareDay = s2.lastCareAt ? getDay(s2.lastCareAt) : '';
+            let nextConsecutive = s2.consecutiveCareDays || 0;
+            if (lastCareDay === today) {
+            } else if (lastCareDay === yesterday || lastCareDay === '') {
+              nextConsecutive = (s2.consecutiveCareDays || 0) + 1;
+            } else {
+              nextConsecutive = 1;
+            }
+            const nextTodayCareCount = lastCareDay === today ? (s2.todayCareCount || 0) + 1 : 1;
+            const nextCareCount = (s2.careCount || 0) + 1;
+            const extraSavedMs = nextConsecutive >= 3 ? Math.floor(config.savedSeconds * 0.5 * 1000) : 0;
+            return {
+              ...s2,
+              plantedAt: Math.max(0, (s2.plantedAt || 0) - savedMs - extraSavedMs),
+              lastCareAt: now,
+              careCount: nextCareCount,
+              todayCareCount: nextTodayCareCount,
+              consecutiveCareDays: nextConsecutive,
+              qualityBonus: nextConsecutive >= 3 ? 1 : (s2.qualityBonus || 0)
+            };
+          })
         }));
         const nameMap = { water: '一键浇水', fertilizer: '批量施肥' };
         return {
           success: true,
-          message: `${nameMap[careType]}成功！${affectedCount} 朵花各加速 ${config.savedSeconds}秒`,
+          message: `${nameMap[careType]}成功！${affectedCount} 朵花各加速 ${config.savedSeconds}秒，连续3天以上享受额外加成`,
           totalSaved: affectedCount * config.savedSeconds,
           affectedCount
         };
@@ -660,12 +747,25 @@ export const useUserStore = create<UserStore>()(
         const lvl = initialLevelsData.find((l) => l.id === levelId);
         if (!lvl) return { rewarded: false, rewards: { coins: 0 } };
 
+        const allRequiredGoalsReached = extras?.allRequiredGoalsReached !== false;
         const prev = state.levelProgress[levelId];
-        const firstTime = !prev?.firstRewarded;
-        const newBestScore = Math.max(prev?.bestScore || 0, score);
-        const newStars = Math.max(prev?.stars || 0, stars);
+        const firstTime = !prev?.firstRewarded && allRequiredGoalsReached;
+        const newBestScore = allRequiredGoalsReached ? Math.max(prev?.bestScore || 0, score) : (prev?.bestScore || 0);
+        const newStars = allRequiredGoalsReached ? Math.max(prev?.stars || 0, stars) : (prev?.stars || 0);
         const playedCount = (prev?.playedCount || 0) + 1;
         const bonusCoins = extras?.bonusCoins || 0;
+
+        // 分目标奖励：每完成一个goal累加对应rewardCoins
+        let goalCoins = 0;
+        const goalsCompleted = extras?.goalsCompleted || {};
+        if (allRequiredGoalsReached) {
+          lvl.goals.forEach((goal) => {
+            const goalKey = `${goal.type}_${goal.flowerType || goal.toolId || 'default'}`;
+            if (goalsCompleted[goalKey] && goal.rewardCoins) {
+              goalCoins += goal.rewardCoins;
+            }
+          });
+        }
 
         const collectedFlowerRecord: Record<number, number> = {};
         if (extras?.collectedFlowerTileTypes) {
@@ -680,10 +780,13 @@ export const useUserStore = create<UserStore>()(
           levelId,
           playedAt: Date.now(),
           score,
-          stars,
+          stars: allRequiredGoalsReached ? stars : 0,
           collectedFlowers: collectedFlowerRecord,
           maxCombo: extras?.maxCombo || 0,
-          usedTools: extras?.usedTools || {}
+          usedTools: extras?.usedTools || {},
+          movesUsed: extras?.movesUsed || lvl.moves,
+          totalMoves: extras?.totalMoves || lvl.moves,
+          goalsCompleted
         };
 
         let nextItems = state.items;
@@ -717,6 +820,9 @@ export const useUserStore = create<UserStore>()(
           }
         }
 
+        // 完成关卡的总金币：首次通关奖励 + 分目标goalCoins + 额外bonusCoins
+        const totalCoinsGained = (firstTime ? lvl.rewards.coins : 0) + goalCoins + bonusCoins;
+
         set((s) => {
           const nextProgress = {
             ...s.levelProgress,
@@ -724,7 +830,7 @@ export const useUserStore = create<UserStore>()(
               levelId,
               bestScore: newBestScore,
               stars: newStars,
-              completed: true,
+              completed: allRequiredGoalsReached ? true : (prev?.completed || false),
               unlocked: true,
               firstRewarded: firstTime ? true : (prev?.firstRewarded || false),
               playedCount
@@ -733,12 +839,13 @@ export const useUserStore = create<UserStore>()(
           const nextLevelId = levelId + 1;
           if (initialLevelsData.find((l) => l.id === nextLevelId)) {
             const oldNext = s.levelProgress[nextLevelId];
+            const shouldUnlockNext = allRequiredGoalsReached;
             nextProgress[nextLevelId] = {
               levelId: nextLevelId,
               bestScore: oldNext?.bestScore || 0,
               stars: oldNext?.stars || 0,
               completed: oldNext?.completed || false,
-              unlocked: true,
+              unlocked: shouldUnlockNext ? true : (oldNext?.unlocked || false),
               firstRewarded: oldNext?.firstRewarded || false,
               playedCount: oldNext?.playedCount || 0
             };
@@ -753,7 +860,7 @@ export const useUserStore = create<UserStore>()(
             currentLevel: Math.max(s.currentLevel, firstTime ? levelId + 1 : s.currentLevel),
             profile: {
               ...s.profile,
-              coins: s.profile.coins + (firstTime ? lvl.rewards.coins : 0) + bonusCoins,
+              coins: s.profile.coins + totalCoinsGained,
               totalScore: s.profile.totalScore + score,
               currentLevel: Math.max(s.profile.currentLevel, firstTime ? levelId + 1 : s.profile.currentLevel)
             },
@@ -765,12 +872,122 @@ export const useUserStore = create<UserStore>()(
         });
 
         if (firstTime) {
-          return { rewarded: true, rewards: { ...lvl.rewards, bonusCoins } };
+          return { rewarded: true, rewards: { ...lvl.rewards, bonusCoins, goalCoins } };
         }
-        return { rewarded: false, rewards: { coins: bonusCoins, bonusCoins } };
+        return { rewarded: false, rewards: { coins: goalCoins + bonusCoins, bonusCoins, goalCoins } };
       },
 
       getLevelPlayRecords: (levelId) => get().levelRecords[levelId] || [],
+
+      refreshDailyOrders: () => {
+        const now = Date.now();
+        const getDay = (ts: number) => {
+          const d = new Date(ts);
+          return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        };
+        const todayKey = getDay(now);
+        const state = get();
+        if (state.lastOrderRefreshDay === todayKey && state.orders.length > 0) {
+          return state.orders;
+        }
+        const newOrders = generateDailyOrders(4);
+        set({ orders: newOrders, lastOrderRefreshDay: todayKey });
+        return newOrders;
+      },
+
+      getOrders: () => {
+        const state = get();
+        // 过期订单标记
+        const now = Date.now();
+        let needUpdate = false;
+        const normalized = state.orders.map((o) => {
+          if (o.status === 'pending' && o.expiresAt < now) {
+            needUpdate = true;
+            return { ...o, status: 'expired' as const };
+          }
+          return o;
+        });
+        if (needUpdate) set({ orders: normalized });
+        if (normalized.length === 0) {
+          return state.refreshDailyOrders();
+        }
+        return normalized;
+      },
+
+      deliverOrder: (orderId) => {
+        const state = get();
+        const order = state.orders.find((o) => o.id === orderId);
+        if (!order) return { success: false, message: '订单不存在' };
+        if (order.status !== 'pending') {
+          return { success: false, message: order.status === 'expired' ? '订单已过期' : '订单已交付' };
+        }
+        const now = Date.now();
+        if (order.expiresAt < now) {
+          return { success: false, message: '订单已过期' };
+        }
+
+        // 检查花种库存是否够（从items里找seed_xxx对应数量）
+        const flowerSeedMap: Record<number, string> = {
+          1: 'seed_rose', 2: 'seed_sunflower', 3: 'seed_tulip', 4: 'seed_cherry',
+          5: 'seed_lily', 6: 'seed_lavender', 7: 'seed_daisy', 8: 'seed_magnolia',
+          9: 'seed_peony', 10: 'seed_camellia', 11: 'seed_jasmine', 12: 'seed_nightbloom'
+        };
+
+        for (const req of order.requirements) {
+          const seedId = flowerSeedMap[req.flowerId];
+          if (!seedId) return { success: false, message: '花种数据异常' };
+          const stock = state.items.find((i) => i.id === seedId)?.count || 0;
+          if (stock < req.count) {
+            const flower = getFlowerById(req.flowerId);
+            return { success: false, message: `${flower?.name || '花'}种不足！需要${req.count}个，当前${stock}个` };
+          }
+        }
+
+        // 扣减库存 + 减少图鉴收集次数(订单消耗属于减少库存，但是flowerCollectCount属于收集统计保持不变)
+        // 花种来源统计：消耗不计入来源，只扣库存
+        let nextItems = state.items;
+        for (const req of order.requirements) {
+          const seedId = flowerSeedMap[req.flowerId];
+          nextItems = nextItems.map((i) => i.id === seedId ? { ...i, count: i.count - req.count } : i);
+        }
+
+        // 发放奖励
+        const rwd = order.reward;
+        if (rwd.coins) {
+          set((s) => ({ profile: { ...s.profile, coins: s.profile.coins + (rwd.coins || 0) } }));
+        }
+        if (rwd.items && rwd.items.length > 0) {
+          nextItems = [...nextItems];
+          for (const rItem of rwd.items) {
+            const idx = nextItems.findIndex((i) => i.id === rItem.id);
+            if (idx >= 0) {
+              nextItems[idx] = { ...nextItems[idx], count: nextItems[idx].count + rItem.count };
+            }
+          }
+        }
+        if (rwd.exp) {
+          set((s) => {
+            const totalExp = s.profile.exp + (rwd.exp || 0);
+            const newLevel = 1 + Math.floor(totalExp / 100);
+            return { profile: { ...s.profile, exp: totalExp, level: newLevel } };
+          });
+        }
+
+        set((s) => ({
+          items: nextItems,
+          orders: s.orders.map((o) => (o.id === orderId ? { ...o, status: 'completed' as const } : o))
+        }));
+
+        const rewardSummary: string[] = [];
+        if (rwd.coins) rewardSummary.push(`💰 +${rwd.coins}`);
+        if (rwd.items) rwd.items.forEach((i) => rewardSummary.push(`${i.id} ×${i.count}`));
+        if (rwd.exp) rewardSummary.push(`EXP +${rwd.exp}`);
+        return {
+          success: true,
+          message: `订单交付成功！获得奖励：${rewardSummary.join('，')}`,
+          rewards: { coins: rwd.coins, items: rwd.items }
+        };
+      },
 
       claimTask: (taskId) => {
         const state = get();
@@ -892,7 +1109,9 @@ export const useUserStore = create<UserStore>()(
           tasks: JSON.parse(JSON.stringify(initialTasksData)),
           levelProgress: JSON.parse(JSON.stringify(initialLevelProgress)),
           levelRecords: {},
-          currentLevel: initialProfile.currentLevel
+          currentLevel: initialProfile.currentLevel,
+          orders: [],
+          lastOrderRefreshDay: ''
         });
       }
     }),
@@ -909,7 +1128,9 @@ export const useUserStore = create<UserStore>()(
         tasks: state.tasks,
         levelProgress: state.levelProgress,
         levelRecords: state.levelRecords,
-        currentLevel: state.currentLevel
+        currentLevel: state.currentLevel,
+        orders: state.orders,
+        lastOrderRefreshDay: state.lastOrderRefreshDay
       })
     }
   )

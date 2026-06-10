@@ -613,3 +613,103 @@
   color: $color-text-tertiary;
   margin-bottom: $spacing-xl;
 }
+
+.goalItem {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  position: relative;
+  padding-left: 4rpx;
+}
+
+.goalTag {
+  flex-shrink: 0;
+  padding: 2rpx 10rpx;
+  border-radius: 16rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goalTagText {
+  font-size: 18rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.resultMoves {
+  display: block;
+  font-size: 24rpx;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-sm;
+}
+
+.failTipCard {
+  background: rgba(231, 76, 60, 0.08);
+  border: 2rpx solid rgba(231, 76, 60, 0.3);
+  border-radius: $radius-lg;
+  padding: $spacing-sm $spacing-md;
+  margin-bottom: $spacing-md;
+  text-align: left;
+}
+
+.failTipTitle {
+  display: block;
+  font-size: 24rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-error;
+  margin-bottom: $spacing-xs;
+}
+
+.failTipList {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.failTipItem {
+  font-size: 22rpx;
+  color: $color-text-secondary;
+}
+
+.achievementTag {
+  flex-shrink: 0;
+  padding: 2rpx 10rpx;
+  border-radius: 16rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.requiredTag {
+  background: #E74C3C;
+}
+
+.bonusTag {
+  background: #27AE60;
+}
+
+.achievementTagText {
+  font-size: 18rpx;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.achievementMeta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.achievementProgress {
+  font-size: 20rpx;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.achievementReward {
+  color: $color-primary;
+  font-weight: $font-weight-semibold;
+  margin-left: 8rpx;
+}
