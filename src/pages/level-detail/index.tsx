@@ -35,25 +35,28 @@ const LevelDetailPage: React.FC = () => {
   const router = useRouter();
   const levelId = Number(router.params.levelId || 25);
   const { getLevelProgress, getLevelPlayRecords, getLevelWithProgress } = useUserStore();
-  const [, setTick] = React.useState(0);
 
-  useDidShow(() => setTick((t) => t + 1));
+  const [tick, setTick] = React.useState(0);
+
+  useDidShow(() => {
+    setTick((t) => t + 1);
+  });
 
   const level = useMemo(() => {
     const base = getLevelById(levelId);
     if (!base) return undefined;
     return getLevelWithProgress(base);
-  }, [levelId, getLevelWithProgress]);
+  }, [levelId, getLevelWithProgress, tick]);
 
-  const levelProgress = useMemo(() => getLevelProgress(levelId), [levelId, getLevelProgress]);
-  const records: LevelPlayRecord[] = useMemo(() => getLevelPlayRecords(levelId).slice(-5).reverse(), [levelId, getLevelPlayRecords]);
+  const levelProgress = useMemo(() => getLevelProgress(levelId), [levelId, getLevelProgress, tick]);
+  const records: LevelPlayRecord[] = useMemo(() => getLevelPlayRecords(levelId).slice(-5).reverse(), [levelId, getLevelPlayRecords, tick]);
   const nextLevel = useMemo(() => {
     const maxId = levels[levels.length - 1]?.id || 0;
     if (levelId >= maxId) return undefined;
     const base = getLevelById(levelId + 1);
     if (!base) return undefined;
     return getLevelWithProgress(base);
-  }, [levelId, getLevelWithProgress]);
+  }, [levelId, getLevelWithProgress, tick]);
 
   if (!level) {
     return (

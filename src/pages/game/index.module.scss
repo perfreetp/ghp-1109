@@ -576,14 +576,36 @@
 
 .rewardRow {
   display: flex;
-  justify-content: center;
-  gap: $spacing-lg;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8rpx 0;
 }
 
 .rewardItem {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
+  font-size: 26rpx;
+  font-weight: $font-weight-medium;
   color: $color-text-primary;
+  flex: 1;
+  text-align: left;
+}
+
+.rewardValue {
+  font-size: 26rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  text-align: right;
+}
+
+.rewardDivider {
+  height: 1rpx;
+  background: rgba(0, 0, 0, 0.08);
+  margin: $spacing-xs 0;
+}
+
+.bold {
+  font-weight: $font-weight-bold !important;
+  font-size: 28rpx !important;
+  color: $color-text-primary !important;
 }
 
 .replayTip {

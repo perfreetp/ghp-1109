@@ -29,7 +29,10 @@ const GardenPage: React.FC = () => {
     harvestFlower,
     checkAndUpdatePlantGrowth,
     upgradeSlotPot,
-    expandGardenSlot
+    expandGardenSlot,
+    careForPlant,
+    careAllPlants,
+    batchHarvestAllReady
   } = useUserStore();
 
   const [, setTick] = useState(0);
@@ -188,6 +191,31 @@ const GardenPage: React.FC = () => {
     }
   };
 
+  const handleCareWaterAll = () => {
+    const result = careAllPlants('water');
+    Taro.showToast({ title: result.message, icon: result.success ? 'success' : 'none', duration: 2000 });
+  };
+
+  const handleCareFertilizerAll = () => {
+    const result = careAllPlants('fertilizer');
+    Taro.showToast({ title: result.message, icon: result.success ? 'success' : 'none', duration: 2000 });
+  };
+
+  const handleBatchHarvest = () => {
+    const result = batchHarvestAllReady();
+    Taro.showModal({
+      title: result.success ? '🎉 批量收获成功' : '🌾 花园收获',
+      content: result.message,
+      showCancel: false,
+      confirmText: '知道了'
+    });
+  };
+
+  const handleCareSingle = (slotId: number, type: 'water' | 'fertilizer') => {
+    const result = careForPlant(slotId, type);
+    Taro.showToast({ title: result.message, icon: result.success ? 'success' : 'none', duration: 2000 });
+  };
+
   const handlePlotClick = (slotId: number) => {
     const slot = plantSlots.find((s) => s.id === slotId);
     if (!slot) return;
@@ -200,28 +228,51 @@ const GardenPage: React.FC = () => {
       const harvestMultiplier = POT_HARVEST_MAP[potLevel] || 1;
       const rewardN = (flower?.harvestReward || 1) * harvestMultiplier;
 
-      Taro.showModal({
-        title: `${flower?.emoji || '🌸'} ${flower?.name || '花朵'}`,
-        content: `生长阶段：${stage + 1}/4${isReady ? ' ✅已成熟可收获' : ''}\n\n花语：${flower?.meaning || ''}${isReady ? `\n\n预计获得：${rewardN} 个花种` : ''}`,
-        confirmText: isReady ? '🌾 收获' : '关闭',
-        showCancel: isReady,
-        cancelText: '关闭',
-        success: (res) => {
-          if (isReady && res.confirm) {
-            const result = harvestFlower(slotId);
-            if (result.success) {
-              Taro.showToast({
-                title: `收获成功，花种+${result.reward || 1}`,
-                icon: 'success'
-              });
-            } else {
-              Taro.showToast({ title: '还没成熟哦', icon: 'none' });
+      if (isReady) {
+        Taro.showModal({
+          title: `${flower?.emoji || '🌸'} ${flower?.name || '花朵'}`,
+          content: `生长阶段：${stage + 1}/4 ✅已成熟可收获\n\n花语：${flower?.meaning || ''}\n\n预计获得：${rewardN} 个花种`,
+          confirmText: '🌾 收获',
+          showCancel: true,
+          cancelText: '关闭',
+          success: (res) => {
+            if (res.confirm) {
+              const result = harvestFlower(slotId);
+              if (result.success) {
+                Taro.showToast({
+                  title: `收获成功，花种+${result.reward || 1}`,
+                  icon: 'success'
+                });
+              }
             }
-          } else if (!isReady && res.confirm) {
-            Taro.showToast({ title: '耐心等待成熟吧~', icon: 'none' });
           }
-        }
-      });
+        });
+      } else {
+        const waterItem = items.find((i) => i.id === 'care_water');
+        const fertItem = items.find((i) => i.id === 'care_fertilizer');
+        const labels = [
+          `💧 浇水 -20s (库存×${waterItem?.count || 0})`,
+          `🧪 施肥 -60s (库存×${fertItem?.count || 0})`,
+          '查看详情'
+        ];
+        Taro.showActionSheet({
+          itemList: labels,
+          success: (res) => {
+            if (res.tapIndex === 0) {
+              handleCareSingle(slotId, 'water');
+            } else if (res.tapIndex === 1) {
+              handleCareSingle(slotId, 'fertilizer');
+            } else if (res.tapIndex === 2) {
+              Taro.showModal({
+                title: `${flower?.emoji || '🌸'} ${flower?.name || '花朵'}`,
+                content: `生长阶段：${stage + 1}/4\n\n花语：${flower?.meaning || ''}\n\n预计成熟后可获得 ${rewardN} 个花种`,
+                showCancel: false,
+                confirmText: '知道了'
+              });
+            }
+          }
+        });
+      }
     } else {
       openSlotMenu(slotId);
     }
@@ -289,9 +340,20 @@ const GardenPage: React.FC = () => {
       </View>
 
       <View className={styles.actionRow}>
-        <View className={styles.actionBtn} onClick={handleSynth}>
-          <Text>🌱</Text>
-          <Text className={styles.actionBtnText}>种植花种</Text>
+        <View className={styles.actionBtn} onClick={handleCareWaterAll}>
+          <Text>💧</Text>
+          <Text className={styles.actionBtnText}>一键浇水</Text>
+        </View>
+        <View className={styles.actionBtn} onClick={handleCareFertilizerAll}>
+          <Text>🧪</Text>
+          <Text className={styles.actionBtnText}>批量施肥</Text>
+        </View>
+        <View
+          className={classnames(styles.actionBtn, harvestableCount > 0 && styles.highlight)}
+          onClick={handleBatchHarvest}
+        >
+          <Text>�</Text>
+          <Text className={styles.actionBtnText}>批量收获{harvestableCount > 0 ? `(${harvestableCount})` : ''}</Text>
         </View>
         <View className={classnames(styles.actionBtn, styles.primary)} onClick={handleSynth}>
           <Text>🏺</Text>

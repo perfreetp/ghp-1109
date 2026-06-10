@@ -54,9 +54,12 @@ const GamePage: React.FC = () => {
   const [gameResult, setGameResult] = useState<'win' | 'lose' | null>(null);
   const [earnedStars, setEarnedStars] = useState(0);
   const [resultSaved, setResultSaved] = useState(false);
-  const [lastRewards, setLastRewards] = useState<{ coins: number; seeds?: number; firstTime: boolean } | null>(null);
+  const [lastRewards, setLastRewards] = useState<{ coins: number; seeds?: number; firstTime: boolean; bonusCoins?: number; goalBonus?: number; stepsBonus?: number } | null>(null);
   const [collectTypeCount, setCollectTypeCount] = useState<Record<number, number>>({});
   const [toolsUsedCount, setToolsUsedCount] = useState<Record<string, number>>({});
+  const [bonusCoinsState, setBonusCoinsState] = useState(0);
+  const [goalBonusState, setGoalBonusState] = useState(0);
+  const [stepsBonusState, setStepsBonusState] = useState(0);
 
   const comboTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const currentLevelIdRef = useRef(levelId);
@@ -80,6 +83,9 @@ const GamePage: React.FC = () => {
     setActiveTool(null);
     setResultSaved(false);
     setLastRewards(null);
+    setBonusCoinsState(0);
+    setGoalBonusState(0);
+    setStepsBonusState(0);
     setCollectTypeCount({});
     setToolsUsedCount({});
     collectTypeCountRef.current = {};
@@ -106,7 +112,7 @@ const GamePage: React.FC = () => {
       case 'movesLimit':
         return lvl.moves - movesLeft;
       case 'collectType':
-        return collectTypeCount[goal.flowerType!] || 0;
+        return collectTypeCount[(goal.flowerType || 1) - 1] || 0;
       case 'comboCount':
         return maxCombo;
       case 'useTool':
@@ -182,6 +188,21 @@ const GamePage: React.FC = () => {
       setGameOver(true);
       setGameResult('lose');
     }
+  };
+
+  const calculateBonusCoins = (): number => {
+    const lvl = currentLevel();
+    let bonus = 0;
+    const extraGoalTypes = ['collectType', 'comboCount', 'useTool'];
+    lvl.goals.forEach((goal) => {
+      if (extraGoalTypes.includes(goal.type) && isGoalReached(goal)) {
+        bonus += Math.round(lvl.rewards.coins * 0.1);
+      }
+    });
+    if (movesLeft >= 5) {
+      bonus += movesLeft * 10;
+    }
+    return bonus;
   };
 
   const showTutorialIfNeeded = (toolId: string) => {
@@ -332,15 +353,28 @@ const GamePage: React.FC = () => {
   useEffect(() => {
     if (!gameOver || gameResult !== 'win' || resultSaved) return;
     const lvl = currentLevel();
-    const { rewarded, rewards } = saveLevelResult(lvl.id, score, earnedStars, {
-      collectedFlowers: collectTypeCount,
-      maxCombo,
-      usedTools: toolsUsedCount
+    let goalBonus = 0;
+    const extraGoalTypes = ['collectType', 'comboCount', 'useTool'];
+    lvl.goals.forEach((goal) => {
+      if (extraGoalTypes.includes(goal.type) && isGoalReached(goal)) {
+        goalBonus += Math.round(lvl.rewards.coins * 0.1);
+      }
     });
-    setLastRewards({ coins: rewards.coins, seeds: rewards.seeds, firstTime: rewarded });
+    const stepsBonus = movesLeft >= 5 ? movesLeft * 10 : 0;
+    const bonusCoins = goalBonus + stepsBonus;
+    const { rewarded, rewards } = saveLevelResult(lvl.id, score, earnedStars, {
+      collectedFlowerTileTypes: collectTypeCount,
+      maxCombo,
+      usedTools: toolsUsedCount,
+      bonusCoins
+    });
+    setBonusCoinsState(bonusCoins);
+    setGoalBonusState(goalBonus);
+    setStepsBonusState(stepsBonus);
+    setLastRewards({ coins: rewards.coins, seeds: rewards.seeds, firstTime: rewarded, bonusCoins, goalBonus, stepsBonus });
     setResultSaved(true);
     Taro.vibrateShort && useUserStore.getState().profile.settings.vibrationEnabled && Taro.vibrateShort({ type: 'medium' }).catch(() => {});
-  }, [gameOver, gameResult, earnedStars, resultSaved, score, saveLevelResult, collectTypeCount, maxCombo, toolsUsedCount]);
+  }, [gameOver, gameResult, earnedStars, resultSaved, score, saveLevelResult, collectTypeCount, maxCombo, toolsUsedCount, movesLeft]);
 
   const handleToolSelect = (toolId: string) => {
     const tool = items.find((i) => i.id === toolId);
@@ -395,7 +429,7 @@ const GamePage: React.FC = () => {
       case 'collectType':
         const flowerInfo = flowerTileNames[(goal.flowerType || 1) - 1];
         displayIcon = flowerInfo?.emoji || displayIcon;
-        displayText = `${displayIcon} ${collectTypeCount[goal.flowerType!] || 0}/${goal.target}`;
+        displayText = `${displayIcon} ${collectTypeCount[(goal.flowerType || 1) - 1] || 0}/${goal.target}`;
         break;
       case 'comboCount':
         displayText = `⚡ ${maxCombo}/${goal.target}`;
@@ -590,8 +624,30 @@ const GamePage: React.FC = () => {
                     </View>
                   </View>
                 )}
-                {lastRewards && !lastRewards.firstTime && (
-                  <Text className={styles.replayTip}>已获得过首次奖励，继续加油刷新记录！</Text>
+                {(bonusCoinsState > 0 || (lastRewards && lastRewards.bonusCoins)) && (
+                  <View className={styles.rewardBox}>
+                    <Text className={styles.rewardTitle}>✨ 额外奖励</Text>
+                    {goalBonusState > 0 && (
+                      <View className={styles.rewardRow}>
+                        <Text className={styles.rewardItem}>🎯 多目标达成</Text>
+                        <Text className={styles.rewardValue}>+{goalBonusState} 💰</Text>
+                      </View>
+                    )}
+                    {stepsBonusState > 0 && (
+                      <View className={styles.rewardRow}>
+                        <Text className={styles.rewardItem}>👣 剩余步数{movesLeft}步</Text>
+                        <Text className={styles.rewardValue}>+{stepsBonusState} 💰</Text>
+                      </View>
+                    )}
+                    <View className={styles.rewardDivider} />
+                    <View className={styles.rewardRow}>
+                      <Text className={classnames(styles.rewardItem, styles.bold)}>额外奖励合计</Text>
+                      <Text className={classnames(styles.rewardValue, styles.bold)}>+{bonusCoinsState || lastRewards?.bonusCoins || 0} 💰</Text>
+                    </View>
+                  </View>
+                )}
+                {lastRewards && !lastRewards.firstTime && bonusCoinsState === 0 && (
+                  <Text className={styles.replayTip}>已获得过首次奖励，完成额外目标获得更多奖励！</Text>
                 )}
               </>
             )}

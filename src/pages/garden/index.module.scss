@@ -98,13 +98,15 @@
 
 .actionBtn {
   flex: 1;
+  min-width: 0;
   height: $button-height-lg;
   background: $color-bg-card;
   border-radius: $radius-lg;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: $spacing-sm;
+  gap: 4rpx;
   box-shadow: $shadow-card;
   transition: all $transition-base;
 
@@ -115,12 +117,22 @@
   &.primary {
     background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
   }
+
+  &.highlight {
+    background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%);
+    animation: pulse 1.5s ease-in-out infinite;
+
+    .actionBtnText {
+      color: $color-text-white;
+    }
+  }
 }
 
 .actionBtnText {
-  font-size: $font-size-md;
+  font-size: 20rpx;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
+  white-space: nowrap;
 
   .primary & {
     color: $color-text-white;

@@ -25,6 +25,15 @@ export interface LevelProgress {
   playedCount: number;
 }
 
+export type CareType = 'water' | 'fertilizer';
+
+interface BatchHarvestSummary {
+  flowerId: number;
+  count: number;
+  emoji: string;
+  name: string;
+}
+
 interface PersistState {
   profile: UserProfile;
   items: Item[];
@@ -51,6 +60,10 @@ interface UserStore extends PersistState {
   upgradeSlotPot: (slotId: number, potItemId: 'pot_clay' | 'pot_porcelain') => { success: boolean; message: string };
   expandGardenSlot: (potItemId: 'pot_clay') => { success: boolean; message: string; newSlotId?: number };
   getNextEmptySlotId: () => number | null;
+  careForPlant: (slotId: number, careType: CareType) => { success: boolean; message: string; savedSeconds?: number };
+  careAllPlants: (careType: CareType) => { success: boolean; message: string; totalSaved?: number; affectedCount?: number };
+  batchHarvestAllReady: () => {
+    success: boolean; message: string; totalHarvested?: number; summary?: BatchHarvestSummary[] };
   claimOfflineEarnings: () => number;
   completeNewUserGuide: () => void;
   saveLevelResult: (
@@ -58,13 +71,14 @@ interface UserStore extends PersistState {
     score: number,
     stars: number,
     extras?: {
-      collectedFlowers?: Record<number, number>;
+      collectedFlowerTileTypes?: Record<number, number>;
       maxCombo?: number;
       usedTools?: Record<string, number>;
+      bonusCoins?: number;
     }
   ) => {
     rewarded: boolean;
-    rewards: { coins: number; seeds?: number; seedType?: string };
+    rewards: { coins: number; seeds?: number; seedType?: string; bonusCoins?: number };
   };
   getLevelPlayRecords: (levelId: number) => LevelPlayRecord[];
   claimTask: (taskId: number) => { success: boolean; message: string };
@@ -73,10 +87,16 @@ interface UserStore extends PersistState {
   getLevelWithProgress: (level: Level) => Level;
   getFlowerCollectCount: (flowerId: number) => number;
   getFlowerSourceRecord: (flowerId: number) => FlowerSourceRecord;
+  tileTypeToFlowerId: (tileType: number) => number;
   resetAll: () => void;
 }
 
-const STORAGE_KEY = 'huaxiaoxiao_user_store_v2';
+const STORAGE_KEY = 'huaxiaoxiao_user_store_v3';
+
+const CARE_CONFIG: Record<CareType, { itemId: string; savedSeconds: number }> = {
+  water: { itemId: 'care_water', savedSeconds: 20 },
+  fertilizer: { itemId: 'care_fertilizer', savedSeconds: 60 }
+};
 
 const initialProfile: UserProfile = {
   userId: 'user_001',
@@ -102,6 +122,8 @@ const initialItems: Item[] = [
   { id: 'shovel', name: '铲子', description: '消除任意一个方块', type: 'tool', icon: '⛏️', count: 5, price: 100 },
   { id: 'watercan', name: '浇水壶', description: '消除整行或整列', type: 'tool', icon: '🚿', count: 3, price: 200 },
   { id: 'rainbow', name: '彩虹花', description: '消除所有同色方块', type: 'tool', icon: '🌈', count: 1, price: 500 },
+  { id: 'care_water', name: '滴灌水', description: '花园照料：给某朵花加速成长20秒', type: 'tool', icon: '💧', count: 10, price: 30 },
+  { id: 'care_fertilizer', name: '营养肥料', description: '花园照料：给某朵花加速成长60秒', type: 'tool', icon: '🧪', count: 5, price: 80 },
   { id: 'seed_rose', name: '玫瑰花种', description: '可种植玫瑰，60秒成熟', type: 'seed', icon: '🌹', count: 8 },
   { id: 'seed_sunflower', name: '向日葵花种', description: '可种植向日葵，90秒成熟', type: 'seed', icon: '🌻', count: 5 },
   { id: 'seed_tulip', name: '郁金香花种', description: '可种植郁金香，180秒成熟', type: 'seed', icon: '🌷', count: 3 },
@@ -204,6 +226,15 @@ function computeGrowthStage(
   return 3;
 }
 
+const TILE_TYPE_TO_FLOWER_ID: Record<number, number> = {
+  0: 1,
+  1: 2,
+  2: 3,
+  3: 4,
+  4: 5,
+  5: 6
+};
+
 export const useUserStore = create<UserStore>()(
   persist(
     (set, get) => ({
@@ -217,6 +248,10 @@ export const useUserStore = create<UserStore>()(
       levelProgress: initialLevelProgress,
       levelRecords: {},
       currentLevel: initialProfile.currentLevel,
+
+      tileTypeToFlowerId: (tileType: number) => {
+        return TILE_TYPE_TO_FLOWER_ID[tileType] || (tileType + 1);
+      },
 
       updateProfile: (updates) => set((state) => ({
         profile: { ...state.profile, ...updates }
@@ -350,7 +385,7 @@ export const useUserStore = create<UserStore>()(
 
           const nextFlowerCollectCount = {
             ...s.flowerCollectCount,
-            [flowerId]: (s.flowerCollectCount[flowerId] || 0) + 1
+            [flowerId]: (s.flowerCollectCount[flowerId] || 0) + reward
           };
 
           const nextFlowerSources = {
@@ -358,7 +393,7 @@ export const useUserStore = create<UserStore>()(
             [flowerId]: {
               levelReward: 0, taskReward: 0, gardenHarvest: 0, shop: 0,
               ...(s.flowerSources[flowerId] || {}),
-              gardenHarvest: ((s.flowerSources[flowerId] || {}).gardenHarvest || 0) + 1
+              gardenHarvest: ((s.flowerSources[flowerId] || {}).gardenHarvest || 0) + reward
             }
           };
 
@@ -385,6 +420,86 @@ export const useUserStore = create<UserStore>()(
         return { success: true, flowerId, reward };
       },
 
+      batchHarvestAllReady: () => {
+        const state = get();
+        const tileFlowerMap: Record<number, BatchHarvestSummary> = {};
+        let totalHarvested = 0;
+        let affected = 0;
+
+        const readySlots = state.plantSlots.filter(
+          (s) => s.occupied && s.growthStage === 3 && s.flowerId !== undefined
+        );
+
+        if (readySlots.length === 0) {
+          return { success: false, message: '暂无可收获的花朵~' };
+        }
+
+        for (const slot of readySlots) {
+          const flowerId = slot.flowerId!;
+          const potLevel = slot.potLevel || 0;
+          const flowerData = getFlowerById(flowerId);
+          const reward = (flowerData?.harvestReward || 1) * (POT_HARVEST_MAP[potLevel] || 1);
+          const flowerSeedMap: Record<number, string> = {
+            1: 'seed_rose', 2: 'seed_sunflower', 3: 'seed_tulip', 4: 'seed_cherry'
+          };
+          const seedId = flowerSeedMap[flowerId];
+          const isNew = !state.collectedFlowerIds.includes(flowerId);
+          const fName = flowerData?.name || '花朵';
+          const fEmoji = flowerData?.emoji || '🌸';
+
+          totalHarvested += reward;
+          affected++;
+
+          if (!tileFlowerMap[flowerId]) {
+            tileFlowerMap[flowerId] = { flowerId, count: 0, emoji: fEmoji, name: fName };
+          }
+          tileFlowerMap[flowerId].count += reward;
+
+          set((s) => {
+            const nextCollected = isNew ? [...s.collectedFlowerIds, flowerId] : s.collectedFlowerIds;
+            const nextFlowerCollectCount = {
+              ...s.flowerCollectCount,
+              [flowerId]: (s.flowerCollectCount[flowerId] || 0) + reward
+            };
+            const nextFlowerSources = {
+              ...s.flowerSources,
+              [flowerId]: {
+                levelReward: 0, taskReward: 0, gardenHarvest: 0, shop: 0,
+                ...(s.flowerSources[flowerId] || {}),
+                gardenHarvest: ((s.flowerSources[flowerId] || {}).gardenHarvest || 0) + reward
+              }
+            };
+            let nextItems = s.items;
+            if (seedId) {
+              nextItems = nextItems.map((i) =>
+                i.id === seedId ? { ...i, count: i.count + reward } : i
+              );
+            }
+            const nextSlots = s.plantSlots.map((s2) =>
+              s2.id === slot.id
+                ? { ...s2, occupied: false, flowerId: undefined, plantedAt: undefined, growthStage: undefined }
+                : s2
+            );
+            return {
+              collectedFlowerIds: nextCollected,
+              flowerCollectCount: nextFlowerCollectCount,
+              flowerSources: nextFlowerSources,
+              items: nextItems,
+              plantSlots: nextSlots
+            };
+          });
+        }
+
+        const summary = Object.values(tileFlowerMap);
+        const detailText = summary.map((s) => `${s.emoji}${s.name}×${s.count}`).join(' ');
+        return {
+          success: true,
+          message: `批量收获 ${affected} 朵花，共获得花种 ${totalHarvested} 个！${detailText}`,
+          totalHarvested,
+          summary
+        };
+      },
+
       checkAndUpdatePlantGrowth: () => {
         const state = get();
         const now = Date.now();
@@ -408,7 +523,70 @@ export const useUserStore = create<UserStore>()(
         if (updatedCount > 0) {
           set({ plantSlots: newSlots });
         }
+        set((s) => ({ profile: { ...s.profile, lastOnlineTime: now } }));
         return updatedCount;
+      },
+
+      careForPlant: (slotId, careType) => {
+        const config = CARE_CONFIG[careType];
+        if (!config) return { success: false, message: '未知照料方式' };
+        const state = get();
+        const item = state.items.find((i) => i.id === config.itemId);
+        if (!item || item.count <= 0) {
+          const nameMap: Record<CareType, string> = { water: '滴灌水', fertilizer: '营养肥料' };
+          return { success: false, message: `${nameMap[careType]}不足啦！去关卡或商店获取吧` };
+        }
+        const slot = state.plantSlots.find((s) => s.id === slotId);
+        if (!slot || !slot.occupied || !slot.plantedAt) {
+          return { success: false, message: '该地块没有正在生长的花朵' };
+        }
+
+        const savedMs = config.savedSeconds * 1000;
+        set((s) => ({
+          items: s.items.map((i) => i.id === config.itemId ? { ...i, count: i.count - 1 } : i),
+          plantSlots: s.plantSlots.map((s2) =>
+            s2.id === slotId ? { ...s2, plantedAt: Math.max(0, (s2.plantedAt || 0) - savedMs) } : s2
+          )
+        }));
+        const nameMap: Record<CareType, string> = { water: '浇水', fertilizer: '施肥' };
+        return { success: true, message: `${nameMap[careType]}成功！成长加速 ${config.savedSeconds} 秒`, savedSeconds: config.savedSeconds };
+      },
+
+      careAllPlants: (careType) => {
+        const config = CARE_CONFIG[careType];
+        if (!config) return { success: false, message: '未知照料方式' };
+        const state = get();
+        const item = state.items.find((i) => i.id === config.itemId);
+        const growingSlots = state.plantSlots.filter(
+          (s) => s.occupied && s.plantedAt && (s.growthStage || 0) < 3
+        );
+        const affectedCount = Math.min(growingSlots.length, item?.count || 0);
+        if (affectedCount === 0) {
+          if (!item || item.count === 0) {
+            return { success: false, message: '道具不足或无成长中花朵' };
+          }
+          return { success: false, message: '没有正在成长中的花朵~' };
+        }
+        if (!item) return { success: false, message: '道具不足！' };
+
+        const savedMs = config.savedSeconds * 1000;
+        const applySlots = growingSlots.slice(0, affectedCount);
+        const applyIds = new Set(applySlots.map((s) => s.id));
+        set((s) => ({
+          items: s.items.map((i) => i.id === config.itemId ? { ...i, count: i.count - affectedCount } : i),
+          plantSlots: s.plantSlots.map((s2) =>
+            applyIds.has(s2.id)
+              ? { ...s2, plantedAt: Math.max(0, (s2.plantedAt || 0) - savedMs) }
+              : s2
+          )
+        }));
+        const nameMap = { water: '一键浇水', fertilizer: '批量施肥' };
+        return {
+          success: true,
+          message: `${nameMap[careType]}成功！${affectedCount} 朵花各加速 ${config.savedSeconds}秒`,
+          totalSaved: affectedCount * config.savedSeconds,
+          affectedCount
+        };
       },
 
       upgradeSlotPot: (slotId, potItemId) => {
@@ -441,7 +619,6 @@ export const useUserStore = create<UserStore>()(
         if (potItemId !== 'pot_clay') return { success: false, message: '只有陶土花盆可用于扩建' };
         const pot = state.items.find((i) => i.id === potItemId);
         if (!pot || pot.count <= 0) return { success: false, message: '陶土花盆数量不足，去合成或商店获取吧' };
-
         const currentCount = state.plantSlots.length;
         if (currentCount >= 24) return { success: false, message: '花园已达最大容量(24格)' };
 
@@ -461,8 +638,7 @@ export const useUserStore = create<UserStore>()(
       },
 
       getNextEmptySlotId: () => {
-        const state = get();
-        const empty = state.plantSlots.find((s) => !s.occupied);
+        const empty = get().plantSlots.find((s) => !s.occupied);
         return empty ? empty.id : null;
       },
 
@@ -489,13 +665,23 @@ export const useUserStore = create<UserStore>()(
         const newBestScore = Math.max(prev?.bestScore || 0, score);
         const newStars = Math.max(prev?.stars || 0, stars);
         const playedCount = (prev?.playedCount || 0) + 1;
+        const bonusCoins = extras?.bonusCoins || 0;
+
+        const collectedFlowerRecord: Record<number, number> = {};
+        if (extras?.collectedFlowerTileTypes) {
+          const entries = Object.entries(extras.collectedFlowerTileTypes);
+          entries.forEach(([tileType, count]) => {
+            const flowerId = TILE_TYPE_TO_FLOWER_ID[Number(tileType)] || (Number(tileType) + 1);
+            collectedFlowerRecord[flowerId] = (collectedFlowerRecord[flowerId] || 0) + count;
+          });
+        }
 
         const record: LevelPlayRecord = {
           levelId,
           playedAt: Date.now(),
           score,
           stars,
-          collectedFlowers: extras?.collectedFlowers || {},
+          collectedFlowers: collectedFlowerRecord,
           maxCombo: extras?.maxCombo || 0,
           usedTools: extras?.usedTools || {}
         };
@@ -567,7 +753,7 @@ export const useUserStore = create<UserStore>()(
             currentLevel: Math.max(s.currentLevel, firstTime ? levelId + 1 : s.currentLevel),
             profile: {
               ...s.profile,
-              coins: s.profile.coins + (firstTime ? lvl.rewards.coins : 0),
+              coins: s.profile.coins + (firstTime ? lvl.rewards.coins : 0) + bonusCoins,
               totalScore: s.profile.totalScore + score,
               currentLevel: Math.max(s.profile.currentLevel, firstTime ? levelId + 1 : s.profile.currentLevel)
             },
@@ -579,15 +765,12 @@ export const useUserStore = create<UserStore>()(
         });
 
         if (firstTime) {
-          return { rewarded: true, rewards: lvl.rewards };
+          return { rewarded: true, rewards: { ...lvl.rewards, bonusCoins } };
         }
-        return { rewarded: false, rewards: { coins: 0 } };
+        return { rewarded: false, rewards: { coins: bonusCoins, bonusCoins } };
       },
 
-      getLevelPlayRecords: (levelId) => {
-        const state = get();
-        return state.levelRecords[levelId] || [];
-      },
+      getLevelPlayRecords: (levelId) => get().levelRecords[levelId] || [],
 
       claimTask: (taskId) => {
         const state = get();
@@ -597,9 +780,7 @@ export const useUserStore = create<UserStore>()(
         if (task.claimed) return { success: false, message: '奖励已领取' };
 
         set((s) => {
-          const nextTasks = s.tasks.map((t) =>
-            t.id === taskId ? { ...t, claimed: true } : t
-          );
+          const nextTasks = s.tasks.map((t) => t.id === taskId ? { ...t, claimed: true } : t);
           let nextCoins = s.profile.coins;
           let nextItems = s.items;
           let nextFlowerCollectCount = s.flowerCollectCount;
@@ -610,15 +791,10 @@ export const useUserStore = create<UserStore>()(
           if (task.reward.seeds) {
             const seedId = task.reward.seedType || 'seed_rose';
             const flowerSeedMap: Record<string, number> = {
-              seed_rose: 1,
-              seed_sunflower: 2,
-              seed_tulip: 3,
-              seed_cherry: 4
+              seed_rose: 1, seed_sunflower: 2, seed_tulip: 3, seed_cherry: 4
             };
             const flowerId = flowerSeedMap[seedId];
-            nextItems = nextItems.map((i) =>
-              i.id === seedId ? { ...i, count: i.count + task.reward.seeds! } : i
-            );
+            nextItems = nextItems.map((i) => i.id === seedId ? { ...i, count: i.count + task.reward.seeds! } : i);
             if (flowerId) {
               const count = task.reward.seeds;
               nextFlowerCollectCount = {
@@ -655,7 +831,6 @@ export const useUserStore = create<UserStore>()(
             collectedFlowerIds: nextCollectedIds
           };
         });
-
         return { success: true, message: '领取成功' };
       },
 
@@ -701,18 +876,10 @@ export const useUserStore = create<UserStore>()(
         };
       },
 
-      getFlowerCollectCount: (flowerId) => {
-        return get().flowerCollectCount[flowerId] || 0;
-      },
+      getFlowerCollectCount: (flowerId) => get().flowerCollectCount[flowerId] || 0,
 
-      getFlowerSourceRecord: (flowerId) => {
-        return get().flowerSources[flowerId] || {
-          levelReward: 0,
-          taskReward: 0,
-          gardenHarvest: 0,
-          shop: 0
-        };
-      },
+      getFlowerSourceRecord: (flowerId) =>
+        get().flowerSources[flowerId] || { levelReward: 0, taskReward: 0, gardenHarvest: 0, shop: 0 },
 
       resetAll: () => {
         set({
